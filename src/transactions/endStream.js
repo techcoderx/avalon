@@ -12,6 +12,8 @@ module.exports = {
             } else if (stream.ended) {
                 cb(false, 'stream already ended'); return
             }
+
+            // TODO: Adjust block number for HF
             mongo.lastBlock((blockNum) => {
                 if (blockNum._id < 100)
                     cb(false, 'forbidden transaction type')

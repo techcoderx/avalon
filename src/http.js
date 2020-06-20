@@ -386,6 +386,35 @@ var http = {
             })
         })
 
+        app.get('/stream/:author/:link', (req,res) => {
+            if (!req.params.author || typeof req.params.link !== 'string')
+                return res.status(400).send()
+            db.collection('streams').findOne({
+                _id: req.params.author + '/' + req.params.link
+            },(err,stream) => {
+                if (!stream) return res.status(404).send()
+                let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0'
+                let gw = req.query.gw || 'https://ipfs.io/ipfs/'
+                let availqualities = Object.keys(stream.chunks).sort()
+                let quality = req.query.quality || availqualities[availqualities.length - 1]
+
+                if (!availqualities.includes(quality))
+                    return res.status(404).send()
+
+                // video on demand if livestream ended
+                if (stream.ended) m3u8File += '\n#EXT-X-PLAYLIST-TYPE:VOD'
+                m3u8File += '\n\n'
+
+                for (let c = 0; c < stream.len.length; c++) {
+                    m3u8File += '#EXTINF:' + stream.len[c] + ',\n'
+                    m3u8File += gw + stream.chunks[quality][c] + '\n'
+                }
+                if (stream.ended) m3u8File += '#EXT-X-ENDLIST'
+                res.setHeader('Content-Type', 'text/plain')
+                res.status(200).send(m3u8File)
+            })
+        })
+
         // get current chain config
         app.get('/config', (req, res) => {
             res.send(config)
