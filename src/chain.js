@@ -95,7 +95,8 @@ chain = {
             // at this point transactions in the pool seem all validated
             // BUT with a different ts and without checking for double spend
             // so we will execute transactions in order and revalidate after each execution
-            chain.executeBlockTransactions(newBlock, true, true, function(validTxs, distributed, burned) {
+            chain.executeBlockTransactions(newBlock, true, false, function(validTxs, distributed, burned) {
+                cache.rollback()
                 // and only add the valid txs to the new block
                 newBlock.txs = validTxs
 
@@ -112,16 +113,20 @@ chain = {
                 // hash and sign the block with our private key
                 newBlock = chain.hashAndSignBlock(newBlock)
                 
-                // TODO maybe only precommit to consensus here
-                // add it to our chain !
-                chain.addBlock(newBlock, function() {
-                    // and broadcast to peers
-                    p2p.broadcastBlock(newBlock)
+                // push the new block to consensus possible blocks
+                // and go straight to end of round 0 to skip re-validating the block
+                var possBlock = {
+                    block: newBlock
+                }
+                for (let r = 0; r < config.consensusRounds; r++)
+                    possBlock[r] = []
 
-                    // process notifications (non blocking)
-                    notifications.processBlock(newBlock)
-                    cb(null, newBlock)
-                })
+                logr.debug('Mined a new block, proposing to consensus')
+
+                possBlock[0].push(process.env.NODE_OWNER)
+                consensus.possBlocks.push(possBlock)
+                consensus.endRound(0, newBlock)
+                cb(null, newBlock)
             })
         })
     },
@@ -186,7 +191,7 @@ chain = {
             mineInMs = config.blockTime
         // else if the scheduled leaders miss blocks
         // backups witnesses are available after each block time intervals
-        else for (let i = 1; i <= config.leaders; i++)
+        else for (let i = 1; i < 2*config.leaders; i++)
             if (chain.recentBlocks[chain.recentBlocks.length - i]
             && chain.recentBlocks[chain.recentBlocks.length - i].miner === process.env.NODE_OWNER) {
                 mineInMs = (i+1)*config.blockTime
@@ -194,7 +199,8 @@ chain = {
             }
 
         if (mineInMs) {
-            logr.trace('Trying to mine in '+mineInMs+'ms')
+            logr.debug('Trying to mine in '+mineInMs+'ms')
+            consensus.observer = false
             chain.worker = setTimeout(function(){
                 chain.mineBlock(function(error, finalBlock) {
                     if (error)
@@ -283,7 +289,15 @@ chain = {
                 for (let i = 0; i < account.keys.length; i++) 
                     if (account.keys[i].types.indexOf(txType) > -1)
                         allowedPubKeys.push(account.keys[i].pub)
-                
+
+            // if there is no transaction type
+            // it means we are verifying a block signature
+            // so only the leader key is allowed
+            if (txType === null)
+                if (account.pub_leader)
+                    allowedPubKeys = [account.pub_leader]
+                else
+                    allowedPubKeys = []
             
             for (let i = 0; i < allowedPubKeys.length; i++) {
                 var bufferHash = Buffer.from(hash, 'hex')
@@ -493,6 +507,7 @@ chain = {
             // add rewards for the leader who mined this block
             chain.leaderRewards(block.miner, block.timestamp, function(dist) {
                 distributedInBlock += dist
+                distributedInBlock = Math.round(distributedInBlock*1000) / 1000
                 cb(executedSuccesfully, distributedInBlock, burnedInBlock)
             })
         })
@@ -502,7 +517,7 @@ chain = {
         var rand = parseInt('0x'+hash.substr(hash.length-config.leaderShufflePrecision))
         if (!p2p.recovering)
             logr.info('Generating schedule... NRNG: ' + rand)
-        chain.generateLeaders(function(miners) {
+        chain.generateLeaders(true, config.leaders, function(miners) {
             miners = miners.sort(function(a,b) {
                 if(a.name < b.name) return -1
                 if(a.name > b.name) return 1
@@ -527,10 +542,28 @@ chain = {
             })
         })
     },
-    generateLeaders: (cb) => {
-        db.collection('accounts').find({node_appr: {$gt: 0}}, {
+    generateLeaders: (withLeaderPub, limit, cb) => {
+        
+        var query = {
+            $and: [{
+                pub_leader: {$exists: true}
+            }, {
+                node_appr: {$gt: 0}
+            }]
+        }
+        if (!withLeaderPub)
+            query['$and'].splice(0,1)
+        db.collection('accounts').find(query,{
             sort: {node_appr: -1, name: -1},
-            limit: config.leaders
+            limit: limit
+        }).project({
+            name: 1,
+            pub: 1,
+            pub_leader: 1,
+            balance: 1,
+            approves: 1,
+            node_appr: 1,
+            json: 1,
         }).toArray(function(err, accounts) {
             if (err) throw err
             cb(accounts)
@@ -544,9 +577,12 @@ chain = {
             if (!newVt) 
                 logr.debug('error growing grow int', account, ts)
             
-            newVt.v += config.leaderRewardVT
+            if (config.leaderRewardVT) {
+                newVt.v += config.leaderRewardVT
+                account.vt = newVt
+            }
 
-            if (config.leaderReward > 0 && config.leaderRewardVT > 0)
+            if (config.leaderReward > 0 || config.leaderRewardVT > 0)
                 cache.updateOne('accounts', 
                     {name: account.name},
                     {$set: {
@@ -555,12 +591,16 @@ chain = {
                     }},
                     function(err) {
                         if (err) throw err
-                        transaction.updateGrowInts(account, ts, function() {
-                            transaction.adjustNodeAppr(account, config.leaderReward, function() {
-                                cb(config.leaderReward)
+                        if (config.leaderReward > 0)
+                            transaction.updateGrowInts(account, ts, function() {
+                                transaction.adjustNodeAppr(account, config.leaderReward, function() {
+                                    cb(config.leaderReward)
+                                })
                             })
-                        })
-                    })
+                        else
+                            cb(0)
+                    }
+                )
             else cb(0)
         })
     },

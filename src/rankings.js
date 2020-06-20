@@ -1,7 +1,8 @@
 var decay = require('decay')
-const hotHalfTime = 45000
-const trendingHalfTime = 201600
-const expireFactor = 5000
+const cloneDeep = require('clone-deep')
+const hotHalfTime = 43200 // 12 hours
+const trendingHalfTime = 302400 // 3.5 days
+const expireFactor = 5000 // disappears after 5 half times
 
 var rankings = {
     types: {
@@ -52,6 +53,7 @@ var rankings = {
         
     },
     new: function(content) {
+        content = cloneDeep(content)
         for (const key in rankings.types) {
             var alreadyAdded = false
             for (let i = 0; i < rankings.contents[key].length; i++) 
@@ -67,7 +69,7 @@ var rankings = {
             content.score = 0
             content.ups = 0
             content.downs = 0
-            content.dist = 0
+            content.dist = content.dist ? content.dist : 0
             if (content.votes[0].vt > 0)
                 content.ups += Math.abs(content.votes[0].vt)
             if (content.votes[0].vt < 0)
