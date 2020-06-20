@@ -19,6 +19,8 @@ var config = {
             allowRevotes: false,
             // the base58 encoding alphabet
             b58Alphabet: '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
+            // base64 characters for Skylinks
+            b64Alphabet: '123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_',
             // the start time of the chain
             block0ts: 1590862621000,
             // the block time in ms

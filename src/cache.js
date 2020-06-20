@@ -4,11 +4,13 @@ var cache = {
     copy: {
         accounts: {},
         contents: {},
-        distributed: {}
+        distributed: {},
+        streams: {}
     },
     accounts: {},
     contents: {},
     distributed: {},
+    streams: {},
     changes: [],
     inserts: [],
     rollback: function() {
@@ -19,9 +21,12 @@ var cache = {
             cache.contents[key] = cloneDeep(cache.copy.contents[key])
         for (const key in cache.copy.distributed)
             cache.distributed[key] = cloneDeep(cache.copy.distributed[key])
+        for (const key in cache.copy.streams)
+            cache.streams[key] = cloneDeep(cache.copy.streams[key])
         cache.copy.accounts = {}
         cache.copy.contents = {}
         cache.copy.distributed = {}
+        cache.copy.streams = {}
         cache.changes = []
 
         // and discarding new inserts
@@ -36,7 +41,7 @@ var cache = {
         eco.nextBlock()
     },
     findOne: function(collection, query, cb) {
-        if (['accounts','blocks','contents'].indexOf(collection) === -1) {
+        if (['accounts','blocks','contents','streams'].indexOf(collection) === -1) {
             cb(true)
             return
         }
@@ -89,9 +94,19 @@ var cache = {
 
                 case '$push':
                     for (var p in changes[c]) {
-                        if (!cache[collection][obj[key]][p])
-                            cache[collection][obj[key]][p] = []
-                        cache[collection][obj[key]][p].push(changes[c][p])
+                        if (p.includes('.')) {
+                            // 2 layers deep
+                            let q = p.split('.')
+                            if (!cache[collection][obj[key]][q[0]])
+                                cache[collection][obj[key]][q[0]] = {}
+                            if (!cache[collection][obj[key]][q[0]][q[1]])
+                                cache[collection][obj[key]][q[0]][q[1]] = []
+                            cache[collection][obj[key]][q[0]][q[1]].push(changes[c][p])
+                        } else {
+                            if (!cache[collection][obj[key]][p])
+                                cache[collection][obj[key]][p] = []
+                            cache[collection][obj[key]][p].push(changes[c][p])
+                        }
                     }
                     break
 
@@ -174,6 +189,7 @@ var cache = {
         cache.accounts = {}
         cache.contents = {}
         cache.distributed = {}
+        cache.streams = {}
     },
     writeToDisk: function(cb) {
         // if (cache.inserts.length) logr.debug(cache.inserts.length+' Inserts')
@@ -193,7 +209,8 @@ var cache = {
         var docsToUpdate = {
             accounts: {},
             contents: {},
-            distributed: {}
+            distributed: {},
+            streams: {}
         }
         for (let i = 0; i < cache.changes.length; i++) {
             var change = cache.changes[i]
@@ -236,6 +253,7 @@ var cache = {
             cache.copy.accounts = {}
             cache.copy.contents = {}
             cache.copy.distributed = {}
+            cache.copy.streams = {}
         })
     },
     keyByCollection: function(collection) {

@@ -17,7 +17,9 @@ var transactions = [
     require('./transferBw.js'),
     require('./limitVt.js'),
     require('./claimReward.js'),
-    require('./enableNode.js')
+    require('./enableNode.js'),
+    require('./pushStream.js'),
+    require('./endStream.js')
 ]
 
 module.exports = {
@@ -40,7 +42,9 @@ module.exports = {
         TRANSFER_BW: 15,
         LIMIT_VT: 16,
         CLAIM_REWARD: 17,
-        ENABLE_NODE: 18
+        ENABLE_NODE: 18,
+        PUSH_STREAM: 19,
+        END_STREAM: 20
     },
     validate: (tx, ts, legitUser, cb) => {
         // will make sure the transaction type exists (redondant ?)

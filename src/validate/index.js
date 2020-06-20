@@ -3,5 +3,6 @@ module.exports = {
     integer: require('./integer.js'),
     json: require('./json.js'),
     publicKey: require('./publicKey.js'),
-    string: require('./string.js')
+    string: require('./string.js'),
+    float: require('./float.js')
 }
