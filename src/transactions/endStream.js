@@ -14,12 +14,10 @@ module.exports = {
             }
 
             // TODO: Adjust block number for HF
-            mongo.lastBlock((blockNum) => {
-                if (blockNum._id < 100)
-                    cb(false, 'forbidden transaction type')
-                else
-                    cb(true)
-            })
+            if (chain.getLatestBlock()._id < 100)
+                cb(false, 'forbidden transaction type')
+            else
+                cb(true)
         })
     },
     execute: (tx,ts,cb) => {
