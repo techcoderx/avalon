@@ -9,15 +9,11 @@ module.exports = {
             cb(false, 'invalid tx data.len'); return
         }
 
-        if (!validate.json(tx.data.hash,999)) {
-            cb(false, 'invalid tx data.hash'); return
-        }
-
         let qualities = []
 
         for (quality in tx.data.hash) {
             if (isNaN(quality) && quality !== 'src') {
-                cb(false, 'invalid tx data.hash quality'); return
+                cb(false, 'invalid tx data.hash invalid quality'); return
             }
 
             if (!validate.string(tx.data.hash[quality],64,46,config.b64Alphabet)) {
@@ -28,7 +24,9 @@ module.exports = {
         }
 
         if (qualities.length == 0) {
-            cb(false, 'invalid tx.data.hash'); return
+            cb(false, 'invalid tx.data.hash missing stream qualities'); return
+        } else if (qualities.length > config.streamMaxQualities) {
+            cb(false, 'invalid tx.data.hash exceeded streamMaxQualities')
         }
 
         qualities.sort()
@@ -54,11 +52,7 @@ module.exports = {
                     }
                 }
 
-                // TODO: Adjust block number for HF
-                if (chain.getLatestBlock()._id < 100)
-                    cb(false, 'forbidden transaction type')
-                else
-                    cb(true)
+                cb(true)
             })
         })
     },

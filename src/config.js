@@ -100,6 +100,8 @@ var config = {
             rewardPoolMult: 80, // 0.40 DTC / active user / cycle => 1.2 DTC / active user / day
             // the maximum share of the reward pool a single distribution can generate
             rewardPoolMaxShare: 0.1,
+            // maximum number of livestream qualities
+            streamMaxQualities: 10,
             // the maximum length of tags (on votes)
             tagMaxLength: 25,
             tagMaxPerContent: 5,
@@ -112,10 +114,19 @@ var config = {
                 0: 2,
                 14: 2,
                 15: 2,
+                19: 1,
+                20: 1
             },
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
             vtPerBurn: 6 // can be updated in the future to modify incentives
+        },
+        100: {
+            // Livestream HF
+            txLimits: {
+                19: 0,
+                20: 0
+            }
         }
     },
     read: (blockNum) => {

@@ -1,6 +1,8 @@
 // content json and profile
 
 module.exports = (value, max) => {
+    if (!max)
+        max = Number.MAX_SAFE_INTEGER
     if (!value)
         return false
     if (typeof value !== 'object')

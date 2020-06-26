@@ -13,11 +13,7 @@ module.exports = {
                 cb(false, 'stream already ended'); return
             }
 
-            // TODO: Adjust block number for HF
-            if (chain.getLatestBlock()._id < 100)
-                cb(false, 'forbidden transaction type')
-            else
-                cb(true)
+            cb(true)
         })
     },
     execute: (tx,ts,cb) => {

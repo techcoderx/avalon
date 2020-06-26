@@ -394,7 +394,7 @@ var http = {
             },(err,stream) => {
                 if (!stream) return res.status(404).send()
                 let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0'
-                let gw = req.query.gw || 'https://ipfs.io/ipfs/'
+                let gw = req.query.gw || 'http://localhost:8080/ipfs/'
                 let availqualities = Object.keys(stream.chunks).sort()
                 let quality = req.query.quality || availqualities[availqualities.length - 1]
 
