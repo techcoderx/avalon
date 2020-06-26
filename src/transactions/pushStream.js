@@ -16,7 +16,7 @@ module.exports = {
                 cb(false, 'invalid tx data.hash invalid quality'); return
             }
 
-            if (!validate.string(tx.data.hash[quality],64,46,config.b64Alphabet)) {
+            if (!validate.string(tx.data.hash[quality],config.streamMaxHashLength,config.streamMinHashLength,config.b64Alphabet)) {
                 cb(false, 'invalid tx data.hash.' + quality); return
             }
 

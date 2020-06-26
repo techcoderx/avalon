@@ -2,7 +2,7 @@
 
 module.exports = (value, max) => {
     if (!max)
-        max = Number.MAX_SAFE_INTEGER
+        max = config.jsonMaxBytes
     if (!value)
         return false
     if (typeof value !== 'object')

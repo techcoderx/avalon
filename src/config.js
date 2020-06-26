@@ -100,8 +100,6 @@ var config = {
             rewardPoolMult: 80, // 0.40 DTC / active user / cycle => 1.2 DTC / active user / day
             // the maximum share of the reward pool a single distribution can generate
             rewardPoolMaxShare: 0.1,
-            // maximum number of livestream qualities
-            streamMaxQualities: 10,
             // the maximum length of tags (on votes)
             tagMaxLength: 25,
             tagMaxPerContent: 5,
@@ -126,7 +124,12 @@ var config = {
             txLimits: {
                 19: 0,
                 20: 0
-            }
+            },
+            // maximum number of livestream qualities
+            streamMaxQualities: 10,
+            // min and max length of stream chunk hashes
+            streamMinHashLength: 46,
+            streamMaxHashLength: 64
         }
     },
     read: (blockNum) => {
