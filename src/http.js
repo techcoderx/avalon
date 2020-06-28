@@ -39,9 +39,9 @@ var http = {
 
         // check econ data
         app.get('/rewardPool', (req, res) => {
-            eco.rewardPool(function(rp) {
-                res.send(rp)
-            })
+            if (eco.lastRewardPool)
+                res.send(eco.lastRewardPool)
+            else res.send({})
         })
 
         // generate a new key pair
@@ -117,18 +117,24 @@ var http = {
             })
         })
 
-        // get possible next blocks
-        app.get('/nextblock', (req,res) => {
-            res.send(p2p.possibleNextBlocks)
-        })
-
         // get in-memory data (intensive)
-        app.get('/cache', (req,res) => {
-            //res.send(Object.keys(cache.accounts).length+' '+Object.keys(cache.contents).length)
-            res.send(cache)
-        })
-        app.get('/cacheb', (req,res) => {
-            res.send(chain.recentBlocks)
+        app.get('/debug', (req,res) => {
+            res.send({
+                mempool: transaction.pool,
+                consensus: {
+                    possBlocks: consensus.possBlocks,
+                    processed: consensus.processed,
+                    validating: consensus.validating,
+                },
+                p2p: {
+                    recoveringBlocks: p2p.recoveringBlocks,
+                    // recoveredBlocks: p2p.recoveredBlocks
+                },
+                chain: {
+                    recentBlocks: chain.recentBlocks,
+                    recentTxs: chain.recentTxs
+                }
+            })
         })
 
         // get hot

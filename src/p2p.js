@@ -7,6 +7,9 @@ const history_interval = 10000
 const keep_history_for = 20000
 var p2p_port = process.env.P2P_PORT || default_port
 var WebSocket = require('ws')
+const { randomBytes } = require('crypto')
+var secp256k1 = require('secp256k1')
+var bs58 = require('base-x')(config.b58Alphabet)
 var chain = require('./chain.js')
 var consensus = require('./consensus.js')
 
@@ -25,51 +28,56 @@ var p2p = {
     recoveringBlocks: [],
     recoveredBlocks: [],
     recovering: false,
-    discoveryWorker: () => {
-        chain.generateLeaders(false, config.leaders*3, function(leaders) {
-            for (let i = 0; i < leaders.length; i++) {
-                if (p2p.sockets.length >= max_peers) {
-                    logr.debug('We already have maximum peers: '+p2p.sockets.length+'/'+max_peers)
-                    break
-                }
-                    
-                if (leaders[i].json && leaders[i].json.node && leaders[i].json.node.ws) {
-                    var excluded = (process.env.DISCOVERY_EXCLUDE ? process.env.DISCOVERY_EXCLUDE.split(',') : [])
-                    if (excluded.indexOf(leaders[i].name) > -1)
-                        continue
-                    var isConnected = false
-                    for (let w = 0; w < p2p.sockets.length; w++) {
-                        var ip = p2p.sockets[w]._socket.remoteAddress
-                        if (ip.indexOf('::ffff:') > -1)
-                            ip = ip.replace('::ffff:', '')
-                        try {
-                            var leaderIp = leaders[i].json.node.ws.split('://')[1].split(':')[0]
-                            if (leaderIp === ip) {
-                                logr.trace('Already peered with '+leaders[i].name)
-                                isConnected = true
-                            }
-                        } catch (error) {
-                            logr.warn('Wrong json.node.ws for leader '+leaders[i].name+' '+leaders[i].json.node.ws, error)
-                        }
-                    }
-                    if (!isConnected) {
-                        logr.info('Trying to connect to '+leaders[i].name+' '+leaders[i].json.node.ws)
-                        p2p.connect([leaders[i].json.node.ws])
-                    }
-                }
-            }
-        })
-    },
+    nodeId: null,
     init: () => {
+        p2p.generateNodeId()
         var server = new WebSocket.Server({port: p2p_port})
         server.on('connection', ws => p2p.handshake(ws))
         logr.info('Listening websocket p2p port on: ' + p2p_port)
         setTimeout(function(){p2p.recover()}, replay_interval)
-        if (!process.env.NO_DISCOVERY) {
+        if (!process.env.NO_DISCOVERY || process.env.NO_DISCOVERY === '0' || process.env.NO_DISCOVERY === 0) {
             setInterval(function(){p2p.discoveryWorker()}, discovery_interval)
             p2p.discoveryWorker()
         }
         setInterval(function(){p2p.cleanRoundConfHistory()}, history_interval)
+    },
+    generateNodeId: () => {
+        p2p.nodeId = chain.getNewKeyPair()
+        logr.info('P2P ID: '+p2p.nodeId.pub)
+    },
+    discoveryWorker: () => {
+        var leaders = chain.generateLeaders(false, config.leaders*3, 0)
+        for (let i = 0; i < leaders.length; i++) {
+            if (p2p.sockets.length >= max_peers) {
+                logr.debug('We already have maximum peers: '+p2p.sockets.length+'/'+max_peers)
+                break
+            }
+                
+            if (leaders[i].json && leaders[i].json.node && leaders[i].json.node.ws) {
+                var excluded = (process.env.DISCOVERY_EXCLUDE ? process.env.DISCOVERY_EXCLUDE.split(',') : [])
+                if (excluded.indexOf(leaders[i].name) > -1)
+                    continue
+                var isConnected = false
+                for (let w = 0; w < p2p.sockets.length; w++) {
+                    var ip = p2p.sockets[w]._socket.remoteAddress
+                    if (ip.indexOf('::ffff:') > -1)
+                        ip = ip.replace('::ffff:', '')
+                    try {
+                        var leaderIp = leaders[i].json.node.ws.split('://')[1].split(':')[0]
+                        if (leaderIp === ip) {
+                            logr.trace('Already peered with '+leaders[i].name)
+                            isConnected = true
+                        }
+                    } catch (error) {
+                        logr.warn('Wrong json.node.ws for leader '+leaders[i].name+' '+leaders[i].json.node.ws, error)
+                    }
+                }
+                if (!isConnected) {
+                    logr.info('Trying to connect to '+leaders[i].name+' '+leaders[i].json.node.ws)
+                    p2p.connect([leaders[i].json.node.ws])
+                }
+            }
+        }
     },
     connect: (newPeers) => {
         newPeers.forEach((peer) => {
@@ -97,10 +105,26 @@ var p2p = {
                 return
             }
         logr.debug('Handshaking new peer', ws.url || ws._socket.remoteAddress+':'+ws._socket.remotePort)
+        var random = randomBytes(config.randomBytesLength).toString('hex')
+        ws.challengeHash = random
+        ws.pendingDisconnect = setTimeout(function() {
+            for (let i = 0; i < p2p.sockets.length; i++)
+                if (p2p.sockets[i].challengeHash === random) {
+                    p2p.sockets[i].close()
+                    logr.warn('A peer did not reply to NODE_STATUS')
+                    continue
+                }
+        }, 1000)
         p2p.sockets.push(ws)
         p2p.messageHandler(ws)
         p2p.errorHandler(ws)
-        p2p.sendJSON(ws, {t: MessageType.QUERY_NODE_STATUS})
+        p2p.sendJSON(ws, {
+            t: MessageType.QUERY_NODE_STATUS,
+            d: {
+                nodeId: p2p.nodeId.pub,
+                random: random
+            }
+        })
     },
     messageHandler: (ws) => {
         ws.on('message', (data) => {
@@ -110,24 +134,76 @@ var p2p = {
                 logr.warn('P2P received non-JSON, doing nothing ;)')
             }
             if (!message || typeof message.t === 'undefined') return
-            if (!message.d && message.t !== MessageType.QUERY_NODE_STATUS) return
+            if (!message.d) return
             // logr.debug('P2P-IN '+message.t)
             
             switch (message.t) {
             case MessageType.QUERY_NODE_STATUS:
                 // a peer is requesting our node status
+                if (typeof message.d !== 'object'
+                && typeof message.d.nodeId !== 'string'
+                && typeof message.d.random !== 'string')
+                    return
+                var wsNodeId = message.d.nodeId
+                if (wsNodeId === p2p.nodeId.pub) {
+                    logr.warn('Peer disconnected: same P2P ID')
+                    ws.close()
+                    return
+                }
+
+                p2p.sockets[p2p.sockets.indexOf(ws)].node_status = {
+                    nodeId: message.d.nodeId
+                }
+
+                var sign = secp256k1.sign(Buffer.from(message.d.random, 'hex'), bs58.decode(p2p.nodeId.priv))
+                sign = bs58.encode(sign.signature)
+
                 var d = {
                     origin_block: config.originHash,
                     head_block: chain.getLatestBlock()._id,
                     head_block_hash: chain.getLatestBlock().hash,
-                    previous_block_hash: chain.getLatestBlock().phash
+                    previous_block_hash: chain.getLatestBlock().phash,
+                    nodeId: p2p.nodeId.pub,
+                    sign: sign
                 }
                 p2p.sendJSON(ws, {t: MessageType.NODE_STATUS, d:d})
                 break
 
             case MessageType.NODE_STATUS:
                 // we received a peer node status
-                p2p.sockets[p2p.sockets.indexOf(ws)].node_status = message.d
+                if (typeof message.d.sign === 'string') {
+                    var nodeId = p2p.sockets[p2p.sockets.indexOf(ws)].node_status.nodeId
+                    if (!message.d.nodeId || message.d.nodeId !== nodeId)
+                        return
+                    var challengeHash = p2p.sockets[p2p.sockets.indexOf(ws)].challengeHash
+                    if (!challengeHash)
+                        return
+                    try {
+                        var isValidSignature = secp256k1.verify(
+                            Buffer.from(challengeHash, 'hex'),
+                            bs58.decode(message.d.sign),
+                            bs58.decode(nodeId))
+                        if (!isValidSignature) {
+                            logr.warn('Wrong NODE_STATUS signature, disconnecting')
+                            ws.close()
+                        }
+                        
+                        for (let i = 0; i < p2p.sockets.length; i++)
+                            if (i !== p2p.sockets.indexOf(ws)
+                            && p2p.sockets[i].node_status
+                            && p2p.sockets[i].node_status.nodeId === nodeId) {
+                                logr.warn('Peer disconnected because duplicate connections')
+                                p2p.sockets[i].close()
+                            }
+    
+                        clearInterval(p2p.sockets[p2p.sockets.indexOf(ws)].pendingDisconnect)
+                        delete message.d.sign
+                        p2p.sockets[p2p.sockets.indexOf(ws)].node_status = message.d
+                    } catch (error) {
+                        logr.error('Error during NODE_STATUS verification', error)
+                    }
+                }
+                
                 break
 
             case MessageType.QUERY_BLOCK:
@@ -159,6 +235,7 @@ var p2p = {
             case MessageType.NEW_BLOCK:
                 // we received a new block we didn't request from a peer
                 // we forward it to consensus
+                if (p2p.recovering) return
                 var block = message.d
                 consensus.round(0, block)
 
@@ -172,6 +249,7 @@ var p2p = {
                 
             case MessageType.NEW_TX:
                 // we received a new transaction from a peer
+                if (p2p.recovering) return
                 var tx = message.d
 
                 // if its already in the mempool, it means we already handled it
@@ -191,27 +269,49 @@ var p2p = {
             case MessageType.BLOCK_CONF_ROUND:
                 // we are receiving a consensus round confirmation
                 // it should come from one of the elected leaders, so let's verify signature
+                if (p2p.recovering) return
                 if (!message.s || !message.s.s || !message.s.n) return
-                // logr.debug(message.s.n+' U'+message.d.r)
+                logr.cons(message.s.n+' U-R'+message.d.r)
 
-                // always try to precommit in case its the first time we see it
-                consensus.round(0, message.d.b, function(validationStep) {
-                    if (validationStep === -1) {
-                        // logr.trace('Ignored BLOCK_CONF_ROUND')
-                    } else if (validationStep === 0) {
-                        // block is being validated, we queue the message
-                        consensus.queue.push(message)
-                        logr.debug('Added to queue')
-                    } else {
-                        // process the message inside the consensus
-                        consensus.remoteRoundConfirm(message)
+                if (p2p.sockets[p2p.sockets.indexOf(ws)]) {
+                    if (!p2p.sockets[p2p.sockets.indexOf(ws)].sentUs)
+                        p2p.sockets[p2p.sockets.indexOf(ws)].sentUs = []
+                    p2p.sockets[p2p.sockets.indexOf(ws)].sentUs.push([message.s.s,new Date().getTime()])
+                }
+
+                for (let i = 0; i < consensus.processed.length; i++) {
+                    if (consensus.processed[i][1] + 2*config.blockTime < new Date().getTime()) {
+                        consensus.processed.splice(i, 1)
+                        i--
+                        continue
                     }
-                })
+                    if (consensus.processed[i][0].s.s === message.s.s)
+                        return
+                }
+                consensus.processed.push([message, new Date().getTime()])
 
-                if (!p2p.sockets[p2p.sockets.indexOf(ws)]) return
-                if (!p2p.sockets[p2p.sockets.indexOf(ws)].sentUs)
-                    p2p.sockets[p2p.sockets.indexOf(ws)].sentUs = []
-                p2p.sockets[p2p.sockets.indexOf(ws)].sentUs.push([message.s.s,new Date().getTime()])
+                consensus.verifySignature(message, function(isValid) {
+                    if (!isValid && !p2p.recovering) {
+                        logr.warn('Received wrong consensus signature', message)
+                        return
+                    }
+
+                    // bounce the message to peers
+                    p2p.broadcastNotSent(message)
+
+                    // always try to precommit in case its the first time we see it
+                    consensus.round(0, message.d.b, function(validationStep) {
+                        if (validationStep === -1) {
+                            // logr.trace('Ignored BLOCK_CONF_ROUND')
+                        } else if (validationStep === 0) {
+                            // block is being validated, we queue the message
+                            consensus.queue.push(message)
+                            logr.debug('Added to queue')
+                        } else
+                            // process the message inside the consensus
+                            consensus.remoteRoundConfirm(message)
+                    })
+                })
                 break
             }
         })
@@ -278,7 +378,7 @@ var p2p = {
     addRecursive: (block) => {
         chain.validateAndAddBlock(block, true, function(err, newBlock) {
             if (err)
-                logr.error('Error Replay', newBlock)
+                logr.error('Error Replay', newBlock._id)
             else {
                 delete p2p.recoveredBlocks[newBlock._id]
                 p2p.recover()

@@ -19,7 +19,8 @@ var TransactionType = require('./transactions').Types
 // 6- Use weighted averages for rewardPool data to smooth it out
 
 var eco = {
-    activeUsers: null,
+    startRewardPool: null,
+    lastRewardPool: null,
     currentBlock: {
         dist: 0,
         burn: 0,
@@ -29,64 +30,56 @@ var eco = {
         eco.currentBlock.dist = 0
         eco.currentBlock.burn = 0
         eco.currentBlock.votes = 0
-        eco.activeUsers = null
+        if (eco.startRewardPool)
+            eco.lastRewardPool = eco.startRewardPool
+        eco.startRewardPool = null
     },
     inflation: (cb) => {
-        if (eco.activeUsers) {
-            cb(config.rewardPoolMult * eco.activeUsers + config.rewardPoolMin)
-            return 
-        }
-            
-        // we consider anyone with a non zero balance to be active
-        db.collection('accounts').find({balance: {$gte: config.activeUserMinBalance}}).count(function(err, count) {
-            if (err) throw err
-            eco.activeUsers = count
-            cb(config.rewardPoolMult * count + config.rewardPoolMin)
-        })
-    },
-    totalSupply: (cb) => {
-        db.collection('accounts').aggregate([
-            {$match: {}},
-            {
-                $group: {
-                    _id: null,
-                    count: {
-                        $sum:'$balance'
-                    }
-                }
-            }
-        ]).toArray(function(err, res) {
-            if (err) throw err
-            cb(res)
-        })
+        cb(config.rewardPoolMult * config.rewardPoolUsers + config.rewardPoolMin)
+        return
     },
     rewardPool: (cb) => {
         eco.inflation(function(theoricalPool){
             var burned = 0
             var distributed = 0
             var votes = 0
-            var firstBlockIndex = chain.recentBlocks.length - config.ecoBlocks
-            if (firstBlockIndex < 0) firstBlockIndex = 0
-            var weight = 1
-            for (let i = firstBlockIndex; i < chain.recentBlocks.length; i++) {
-                const block = chain.recentBlocks[i]
-                if (block.burn)
-                    burned += block.burn
-                if (block.dist)
-                    distributed += block.dist
-                
-                for (let y = 0; y < block.txs.length; y++) {
-                    var tx = block.txs[y]
-                    if (tx.type === TransactionType.VOTE
-                        || tx.type === TransactionType.COMMENT
-                        || tx.type === TransactionType.PROMOTED_COMMENT)
-                        votes += Math.abs(tx.data.vt)*weight
+            if (!eco.startRewardPool) {
+                var firstBlockIndex = chain.recentBlocks.length - config.ecoBlocks
+                if (firstBlockIndex < 0) firstBlockIndex = 0
+                var weight = 1
+                for (let i = firstBlockIndex; i < chain.recentBlocks.length; i++) {
+                    const block = chain.recentBlocks[i]
+                    if (block.burn)
+                        burned += block.burn
+                    if (block.dist)
+                        distributed += block.dist
+                    
+                    for (let y = 0; y < block.txs.length; y++) {
+                        var tx = block.txs[y]
+                        if (tx.type === TransactionType.VOTE
+                            || tx.type === TransactionType.COMMENT
+                            || tx.type === TransactionType.PROMOTED_COMMENT)
+                            votes += Math.abs(tx.data.vt)*weight
+                    }
+                    weight++
                 }
-                weight++
-            }
+    
+                // weighted average for votes
+                votes /= (weight+1)/2
 
-            // weighted average for votes
-            votes /= (weight+1)/2
+                eco.startRewardPool = {
+                    burn: burned,
+                    dist: distributed,
+                    votes: votes,
+                    theo: theoricalPool,
+                    avail: theoricalPool - distributed
+                }
+            } else {
+                burned = eco.startRewardPool.burn
+                distributed = eco.startRewardPool.dist
+                votes = eco.startRewardPool.votes
+            }
+            
 
             var avail = theoricalPool - distributed - eco.currentBlock.dist
             if (avail < 0) avail = 0
@@ -134,6 +127,7 @@ var eco = {
                         winner.share = winner.vt / sumVtWinners
                         winners.push(winner)
                     }
+
             eco.print(currentVote.vt, function(thNewCoins) {
                 // share the new coins between winners
                 var newCoins = 0
@@ -149,7 +143,7 @@ var eco = {
                     newCoins += won
                     delete winners[i].share
 
-                    logr.trace(winners[i].u+' wins '+won+' coins with rentability '+rentabilityWinner)
+                    // logr.econ(winners[i].u+' wins '+won+' coins with rentability '+rentabilityWinner)
                 }
                 newCoins = Math.round(newCoins*Math.pow(10, config.ecoClaimPrecision))/Math.pow(10, config.ecoClaimPrecision)
 
@@ -182,8 +176,8 @@ var eco = {
                 }
                 newBurn = Math.round(newBurn*Math.pow(10, config.ecoClaimPrecision))/Math.pow(10, config.ecoClaimPrecision)
                 
-                logr.trace(newCoins + ' dist from the vote')
-                logr.trace(newBurn + ' burn from the vote')
+                logr.econ(newCoins + ' dist from the vote')
+                logr.econ(newBurn + ' burn from the vote')
 
                 // add dist/burn/votes to currentBlock eco stats
                 eco.currentBlock.dist += newCoins
@@ -259,7 +253,7 @@ var eco = {
             if (thNewCoins > Math.floor(stats.avail*config.rewardPoolMaxShare))
                 thNewCoins = Math.floor(stats.avail*config.rewardPoolMaxShare)
 
-            logr.trace('PRINT:'+vt+' VT => '+thNewCoins+' dist')
+            logr.econ('PRINT:'+vt+' VT => '+thNewCoins+' dist', stats.avail)
             cb(thNewCoins)
         })
     },

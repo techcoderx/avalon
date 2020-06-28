@@ -2,7 +2,6 @@ var config = {
     history: {
         0: {
             // this is configuration for testnet2
-
             // the account pricing options
             // see: https://www.wolframalpha.com/input/?i=plot+10%2B100*(1.1%5E(14-x))+from+x%3D1+to+x%3D40
             accountPriceBase: 10000,
@@ -11,7 +10,6 @@ var config = {
             accountPriceMin: 1,
             accountMaxLength: 50,
             accountMinLength: 1,
-            activeUserMinBalance: 100, // 1.00 DTC to be counted as an active user and count towards inflation
             // allowed username chars
             allowedUsernameChars: 'abcdefghijklmnopqrstuvwxyz0123456789',
             allowedUsernameCharsOnlyMiddle: '-.',
@@ -28,7 +26,7 @@ var config = {
             // the number of ms needed for 0.01 DTC to generate 1 byte of bw
             bwGrowth: 36000000, // +10 bytes per hour per DTC (3600 * 1000 * 100 / 10)
             // the maximum bandwidth an account can have available
-            bwMax: 128000,
+            bwMax: 64000,
             // the number of rounds of consensus before block is valid (min 2)
             consensusRounds: 2,
             // base rentability of votes
@@ -38,7 +36,7 @@ var config = {
             // the precision of the claimable amounts
             ecoClaimPrecision: 3,
             // the required number of ms before a vote reward can be claimed
-            ecoClaimTime: 604800000,
+            ecoClaimTime: 604800000, // 7 days
             // the percentage of coins that are burnt when there are opposite votes with rewards
             ecoPunishPercent: 0.5,
             // the number of ms before a vote reaches 100% rentability
@@ -52,7 +50,7 @@ var config = {
             followsMax: 2000,
             // the max size of a stringified json input (content / user profile)
             // best if kept slightly lower than bwMax
-            jsonMaxBytes: 120000,
+            jsonMaxBytes: 60000,
             // the max length of a key identifier
             keyIdMaxLength: 25,
             // how many max leaders there can be, and how much tokens and VT they earn per "mined" block
@@ -82,6 +80,8 @@ var config = {
             masterPubLeader: 'dTuBhkU6SUx9JEx1f4YEt34X9sC7QGso2dSrqE8eJyfz',
             // the maximum time drift in ms before a block is invalid
             maxDrift: 200,
+            // the maximum number of transactions in a single block
+            maxTxPerBlock: 20,
             // the max length of a transfer memo
             memoMaxLength: 250,
             // defines how long it takes for a notification to get deleted, and how often the purge happens
@@ -91,7 +91,7 @@ var config = {
             // the maximum number of mentions triggering a notification
             notifMaxMentions: 10,
             // the sha256sum hash of block 0 (new origin hash -> new chain)
-            originHash: '1d76da9582163496ad4e3d5ce7460150efc805c41b74d1e9cd590efb7fffe0ad',
+            originHash: 'd046bd0d5af61e5adabf71ab87b23e4e43e8b69ca232c7330ea92f1d8453da90',
             // the default number of random bytes to use for new key generation
             randomBytesLength: 32,
             // the minimum hourly reward pool (including leader rewards)
@@ -100,6 +100,8 @@ var config = {
             rewardPoolMult: 80, // 0.40 DTC / active user / cycle => 1.2 DTC / active user / day
             // the maximum share of the reward pool a single distribution can generate
             rewardPoolMaxShare: 0.1,
+            // the estimated number of active users on the network
+            rewardPoolUsers: 30000,
             // the maximum length of tags (on votes)
             tagMaxLength: 25,
             tagMaxPerContent: 5,
