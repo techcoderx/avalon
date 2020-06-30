@@ -129,6 +129,8 @@ var config = {
             },
             // maximum number of livestream qualities
             streamMaxQualities: 10,
+            // maximum number of livestream chunks (48 hours)
+            streamMaxChunks: 17280,
             // min and max length of stream chunk hashes
             streamMinHashLength: 46,
             streamMaxHashLength: 64

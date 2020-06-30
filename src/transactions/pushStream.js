@@ -87,6 +87,10 @@ module.exports = {
                 for (quality in tx.data.hash)
                     updateOp['$push']['chunks.' + quality] = tx.data.hash[quality]
                 
+                // Automatically end streams if limit is hit
+                if (stream.len.length >= config.streamMaxChunks)
+                    updateOp['$set'] = { ended: true }
+                
                 cache.updateOne('streams', {_id: tx.sender + '/' + tx.data.link }, updateOp,() => {
                     cb(true)
                 })
