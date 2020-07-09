@@ -104,10 +104,11 @@ var cache = {
                             
                             // $each operator for multiple append
                             if (typeof changes[c][p] === 'object') {
-                                for (modifier in changes[c][p]) {
-                                    if (modifier == '$each')
-                                        cache[collection][obj[key]][q[0]][q[1]] = cache[collection][obj[key]][q[0]][q[1]].concat(changes[c][p][modifier])
-                                }
+                                let modifiers = Object.keys(changes[c][p])
+                                if (modifiers.includes('$each'))
+                                    cache[collection][obj[key]][q[0]][q[1]] = cache[collection][obj[key]][q[0]][q[1]].concat(changes[c][p]['$each'])
+                                else
+                                    cache[collection][obj[key]][q[0]][q[1]].push(changes[c][p])
                             } else
                                 cache[collection][obj[key]][q[0]][q[1]].push(changes[c][p])
                         } else {
@@ -116,10 +117,11 @@ var cache = {
                             
                             // $each operator for multiple append
                             if (typeof changes[c][p] === 'object') {
-                                for (modifier in changes[c][p]) {
-                                    if (modifier == '$each')
-                                        cache[collection][obj[key]][p] = cache[collection][obj[key]][p].concat(changes[c][p][modifier])
-                                }
+                                let modifiers = Object.keys(changes[c][p])
+                                if (modifiers.includes('$each'))
+                                    cache[collection][obj[key]][p] = cache[collection][obj[key]][p].concat(changes[c][p]['$each'])
+                                else
+                                    cache[collection][obj[key]][p].push(changes[c][p])
                             } else 
                                 cache[collection][obj[key]][p].push(changes[c][p])
                         }
