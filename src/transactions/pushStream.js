@@ -4,10 +4,15 @@ module.exports = {
         if (!validate.string(tx.data.link, config.accountMaxLength, config.accountMinLength)) {
             cb(false, 'invalid tx data.link'); return
         }
-        
-        if (!validate.float(tx.data.len,false,false)) {
-            cb(false, 'invalid tx data.len'); return
+
+        if (!validate.array(tx.data.len,config.streamMaxChunksTx)) {
+            cb(false, 'invalid tx.data.len array'); return
         }
+        
+        for (chunkLen in tx.data.len)
+            if (!validate.float(tx.data.len[chunkLen],false,false)) {
+                cb(false, 'invalid tx data.len values'); return
+            }
 
         let qualities = []
 
@@ -16,9 +21,18 @@ module.exports = {
                 cb(false, 'invalid tx data.hash invalid quality'); return
             }
 
-            if (!validate.string(tx.data.hash[quality],config.streamMaxHashLength,config.streamMinHashLength,config.b64Alphabet)) {
-                cb(false, 'invalid tx data.hash.' + quality); return
+            if (!validate.array(tx.data.hash[quality],config.streamMaxChunksTx)) {
+                cb(false, 'invalid tx.data.hash.' + quality + ' array'); return
             }
+
+            if (tx.data.hash[quality].length != tx.data.len.length) {
+                cb(false, 'invalid tx.data.hash.' + quality + ' length not match'); return
+            }
+
+            for (chunkHash in tx.data.hash[quality])
+                if (!validate.string(tx.data.hash[quality][chunkHash],config.streamMaxHashLength,config.streamMinHashLength,config.b64Alphabet)) {
+                    cb(false, 'invalid tx data.hash.' + quality); return
+                }
 
             qualities.push(quality)
         }
@@ -66,12 +80,12 @@ module.exports = {
                     link: tx.data.link,
                     ts: ts,
                     ended: false,
-                    len: [tx.data.len],
+                    len: tx.data.len,
                     chunks: {}
                 }
 
                 for (quality in tx.data.hash)
-                    newStream.chunks[quality] = [tx.data.hash[quality]]
+                    newStream.chunks[quality] = tx.data.hash[quality]
                 
                 cache.insertOne('streams',newStream,() => {
                     cb(true)
@@ -80,15 +94,17 @@ module.exports = {
                 // Subsequent chunks
                 let updateOp = {
                     $push: {
-                        "len": tx.data.len
+                        "len": { $each: tx.data.len }
                     }
                 }
 
-                for (quality in tx.data.hash)
-                    updateOp['$push']['chunks.' + quality] = tx.data.hash[quality]
+                for (quality in tx.data.hash) {
+                    updateOp['$push']['chunks.' + quality] = {}
+                    updateOp['$push']['chunks.' + quality]['$each'] = tx.data.hash[quality]
+                }
                 
                 // Automatically end streams if limit is hit
-                if (stream.len.length >= config.streamMaxChunks)
+                if (stream.len.length + tx.data.len.length >= config.streamMaxChunks)
                     updateOp['$set'] = { ended: true }
                 
                 cache.updateOne('streams', {_id: tx.sender + '/' + tx.data.link }, updateOp,() => {

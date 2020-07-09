@@ -133,7 +133,9 @@ var config = {
             streamMaxChunks: 17280,
             // min and max length of stream chunk hashes
             streamMinHashLength: 46,
-            streamMaxHashLength: 64
+            streamMaxHashLength: 64,
+            // maximum number of livestream chunks per tx
+            streamMaxChunksTx: 60
         }
     },
     read: (blockNum) => {
