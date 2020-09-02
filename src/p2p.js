@@ -310,7 +310,8 @@ var p2p = {
                         } else if (validationStep === 0) {
                             // block is being validated, we queue the message
                             consensus.queue.push(message)
-                            logr.debug('Added to queue')
+                            logr.debug('Added to queue. Queue now contains ' + consensus.queue.length + ' items.')
+                            logr.debug(message)
                         } else
                             // process the message inside the consensus
                             consensus.remoteRoundConfirm(message)
