@@ -164,11 +164,13 @@ var consensus = {
                             consensus.remoteRoundConfirm(consensus.queue[i])
                             consensus.queue.splice(i, 1)
                             i--
+                            logr.debug('Removed from queue. Queue now contains ' + consensus.queue.length + ' items.')
                             continue
                         }
                         if (consensus.queue[i].d.b.ts + 2*config.blockTime < new Date().getTime()) {
                             consensus.queue.splice(i, 1)
                             i--
+                            logr.debug('Removed from queue. Queue now contains ' + consensus.queue.length + ' items.')
                         }
                     }
 
