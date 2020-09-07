@@ -157,6 +157,7 @@ var http = {
                     possBlocks: consensus.possBlocks,
                     processed: consensus.processed,
                     validating: consensus.validating,
+                    queue: consensus.queue
                 },
                 p2p: {
                     recoveringBlocks: p2p.recoveringBlocks,

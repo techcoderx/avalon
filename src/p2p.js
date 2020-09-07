@@ -311,7 +311,7 @@ var p2p = {
                             // block is being validated, we queue the message
                             consensus.queue.push(message)
                             logr.debug('Added to queue. Queue now contains ' + consensus.queue.length + ' items.')
-                            logr.debug(message)
+                            logr.trace(message)
                         } else
                             // process the message inside the consensus
                             consensus.remoteRoundConfirm(message)
