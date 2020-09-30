@@ -82,6 +82,9 @@ var http = {
 
         // add data to the upcoming transactions pool
         app.post('/transact', (req, res) => {
+            // Please do not submit any txs to the testnet!!!
+            return res.status(500).send({error: 'We are doing the final preparation 24 hours ahead of mainnet launch, so please do not transact for now until mainnet starts.'})
+            
             var tx = req.body
             if (!tx) {
                 res.sendStatus(500)
@@ -102,6 +105,9 @@ var http = {
         // add data to the upcoming transactions pool
         // and return only when the transaction is in a finalized block
         app.post('/transactWaitConfirm', (req, res) => {
+            // Please do not submit any txs to the testnet!!!
+            return res.status(500).send({error: 'We are doing the final preparation 24 hours ahead of mainnet launch, so please do not transact for now until mainnet starts.'})
+
             var tx = req.body
             if (!tx) {
                 res.sendStatus(500)
