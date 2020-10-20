@@ -45,29 +45,23 @@ module.exports = {
 
         qualities.sort()
 
-        cache.findOne('contents',{_id: tx.sender + '/' + tx.data.link},(e,content) => {
-            if (e) throw e
-            if (!content) {
-                cb(false, 'content not found'); return
-            } else cache.findOne('streams',{_id: tx.sender + '/' + tx.data.link},(e,stream) => {
-                if (stream) {
-                    if (stream.ended) {
-                        cb(false, 'stream already ended'); return
-                    }
-                    let existingQualities = Object.keys(stream.chunks)
-                    existingQualities.sort()
-                    if (existingQualities.length != qualities.length) {
+        cache.findOne('streams',{_id: tx.sender + '/' + tx.data.link},(e,stream) => {
+            if (stream) {
+                if (stream.ended) {
+                    cb(false, 'stream already ended'); return
+                }
+                let existingQualities = Object.keys(stream.chunks)
+                existingQualities.sort()
+                if (existingQualities.length != qualities.length) {
+                    cb(false, 'stream qualities do not match'); return
+                }
+                for (let i = 0; i < existingQualities.length; i++) {
+                    if (existingQualities[i] != qualities[i]) {
                         cb(false, 'stream qualities do not match'); return
                     }
-                    for (let i = 0; i < existingQualities.length; i++) {
-                        if (existingQualities[i] != qualities[i]) {
-                            cb(false, 'stream qualities do not match'); return
-                        }
-                    }
                 }
-
-                cb(true)
-            })
+            }
+            cb(true)
         })
     },
     execute: (tx,ts,cb) => {
