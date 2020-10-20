@@ -2,11 +2,14 @@ var http_port = process.env.HTTP_PORT || 3001
 var express = require('express')
 var cors = require('cors')
 var bodyParser = require('body-parser')
-var fetchVideoInfo = require('youtube-info')
+const YT = require('simple-youtube-api')
+const yt_key = process.env.YT_API_KEY || 'NO_KEY'
+const yt = new YT(yt_key)
 const {extract} = require('oembed-parser')
 const ogs = require('open-graph-scraper')
 const series = require('run-series')
 const transaction = require('./transaction.js')
+const timeout_transact_async = 7500
 
 var http = {
     init: () => {
@@ -44,6 +47,28 @@ var http = {
             else res.send({})
         })
 
+        // get supply info
+        app.get('/supply', (req,res) => {
+            let executions = [
+                (cb) => db.collection('accounts').aggregate([{$group:{_id: 0, total: {$sum: "$balance"}}}]).toArray((e,r) => cb(e,r)),
+                (cb) => db.collection('contents').aggregate([{$unwind: "$votes"},{$match:{"votes.claimed":{$exists:false}}},{$group:{_id: 0, total: {$sum: "$votes.claimable"}}}]).toArray((e,r) => cb(e,r))
+            ]
+
+            series(executions,(e,r) => {
+                if (e)
+                    return res.sendStatus(500)
+
+                var reply = {
+                    circulating: r[0][0].total
+                }
+                if (r[1].length > 0) {
+                    reply.unclaimed = r[1][0].total
+                    reply.total = r[0][0].total + r[1][0].total
+                }
+                res.send(reply)
+            })
+        })
+
         // generate a new key pair
         app.get('/newKeyPair', (req, res) => {
             res.send(chain.getNewKeyPair())
@@ -74,6 +99,35 @@ var http = {
                     p2p.broadcast({t:5, d:tx})
                     transaction.addToPool([tx])
                     res.send(chain.getLatestBlock()._id.toString())
+                }
+            })
+        })
+        
+        // add data to the upcoming transactions pool
+        // and return only when the transaction is in a finalized block
+        app.post('/transactWaitConfirm', (req, res) => {
+            var tx = req.body
+            if (!tx) {
+                res.sendStatus(500)
+                return
+            }
+            transaction.isValid(tx, new Date().getTime(), function(isValid, errorMessage) {
+                if (!isValid) {
+                    logr.trace('invalid http tx: ', errorMessage, tx)
+                    res.status(500).send({error: errorMessage})
+                } else {
+                    p2p.broadcast({t:5, d:tx})
+                    transaction.addToPool([tx])
+
+                    var transactTimeout = setTimeout(function() {
+                        transaction.eventConfirmation.removeListener(tx.hash,() => {})
+                        res.status(408).send({error: 'transaction timeout'})
+                    }, timeout_transact_async)
+
+                    transaction.eventConfirmation.addListener(tx.hash, function() {
+                        clearTimeout(transactTimeout)
+                        res.send(chain.getLatestBlock()._id.toString())
+                    })
                 }
             })
         })
@@ -315,7 +369,7 @@ var http = {
                     'votes.u': voter,
                 }]
             }
-            var lastTs = parseInt(req.params.lastBlock)
+            var lastTs = parseInt(req.params.lastTs)
             if (lastTs > 0)
                 query['$and'].push({ts: {$lt: lastTs}})
 
@@ -529,15 +583,19 @@ var http = {
             })
         })
 
-        // test api (should be separated)
+        // 3rd party video embed data
         // get youtube info
         app.get('/youtube/:videoId', (req, res) => {
             if (!req.params.videoId) {
                 res.sendStatus(500)
                 return
             }
-            fetchVideoInfo(req.params.videoId, function(err, videoInfo) {
-                res.send(videoInfo)
+            yt.getVideoByID(req.params.videoId).then(function(video) {
+                video.duration = video.durationSeconds
+                res.send(video)
+            }).catch(function(err) {
+                logr.warn('YouTube API error', err)
+                res.sendStatus(500)
             })
         })
 

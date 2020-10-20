@@ -26,6 +26,7 @@ class Block {
 }
 
 chain = {
+    restoredBlocks: 0,
     schedule: null,
     recentBlocks: [],
     recentTxs: {},
@@ -88,7 +89,7 @@ chain = {
     },
     hashAndSignBlock: (block) => {
         var nextHash = chain.calculateHash(block._id, block.phash, block.timestamp, block.txs, block.miner, block.missedBy, block.distributed, block.burned)
-        var signature = secp256k1.sign(Buffer.from(nextHash, 'hex'), bs58.decode(process.env.NODE_OWNER_PRIV))
+        var signature = secp256k1.ecdsaSign(Buffer.from(nextHash, 'hex'), bs58.decode(process.env.NODE_OWNER_PRIV))
         signature = bs58.encode(signature.signature)
         return new Block(block._id, block.phash, block.timestamp, block.txs, block.miner, block.missedBy, block.distributed, block.burned, signature, nextHash)
         
@@ -189,6 +190,11 @@ chain = {
 
                     // process notifications (non blocking)
                     notifications.processBlock(newBlock)
+
+                    // emit event to confirm new transactions in the http api
+                    for (let i = 0; i < newBlock.txs.length; i++)
+                        transaction.eventConfirmation.emit(newBlock.txs[i].hash)
+
                     cb(null, newBlock)
                 })
             })
@@ -289,15 +295,22 @@ chain = {
             }
         })
     },
-    output: (block) => {
+    output: (block,rebuilding) => {
         chain.nextOutput.txs += block.txs.length
         if (block.dist)
             chain.nextOutput.dist += block.dist
         if (block.burn)
             chain.nextOutput.burn += block.burn
 
-        if (!p2p.recovering || block._id%replay_output === 0) {
-            var output = '#'+block._id
+        if (block._id%replay_output === 0 || (!rebuilding && !p2p.recovering)) {
+            var output = ''
+            if (rebuilding)
+                output += 'Rebuilt '
+
+            output += '#'+block._id
+
+            if (rebuilding)
+                output += '/' + chain.restoredBlocks
 
             output += '  by '+block.miner
 
@@ -362,7 +375,7 @@ chain = {
                 var bufferHash = Buffer.from(hash, 'hex')
                 var b58sign = bs58.decode(sign)
                 var b58pub = bs58.decode(allowedPubKeys[i])
-                if (secp256k1.verify(bufferHash, b58sign, b58pub)) {
+                if (secp256k1.ecdsaVerify(b58sign, bufferHash, b58pub)) {
                     cb(account)
                     return
                 }
@@ -375,14 +388,14 @@ chain = {
         var theoreticalHash = chain.calculateHashForBlock(newBlock)
         if (theoreticalHash !== newBlock.hash) {
             logr.debug(typeof (newBlock.hash) + ' ' + typeof theoreticalHash)
-            logr.debug('invalid hash: ' + theoreticalHash + ' ' + newBlock.hash)
+            logr.error('invalid hash: ' + theoreticalHash + ' ' + newBlock.hash)
             cb(false); return
         }
 
         // finally, verify the signature of the miner
         chain.isValidSignature(newBlock.miner, null, newBlock.hash, newBlock.signature, function(legitUser) {
             if (!legitUser) {
-                logr.debug('invalid miner signature')
+                logr.error('invalid miner signature')
                 cb(false); return
             }
             cb(true)
@@ -392,7 +405,7 @@ chain = {
         chain.executeBlockTransactions(newBlock, true, false, function(validTxs) {
             cache.rollback()
             if (validTxs.length !== newBlock.txs.length) {
-                logr.debug('invalid block transaction')
+                logr.error('invalid block transaction')
                 cb(false); return
             }
             cb(true)
@@ -401,57 +414,57 @@ chain = {
     isValidNewBlock: (newBlock, verifyHashAndSignature, verifyTxValidity, cb) => {
         // verify all block fields one by one
         if (!newBlock._id || typeof newBlock._id !== 'number') {
-            logr.debug('invalid block _id')
+            logr.error('invalid block _id')
             cb(false); return
         }
         if (!newBlock.phash || typeof newBlock.phash !== 'string') {
-            logr.debug('invalid block phash')
+            logr.error('invalid block phash')
             cb(false); return
         }
         if (!newBlock.timestamp || typeof newBlock.timestamp !== 'number') {
-            logr.debug('invalid block timestamp')
+            logr.error('invalid block timestamp')
             cb(false); return
         }
         if (!newBlock.txs || typeof newBlock.txs !== 'object' || !Array.isArray(newBlock.txs)) {
-            logr.debug('invalid block txs')
+            logr.error('invalid block txs')
             cb(false); return
         }
         if (newBlock.txs.length > config.maxTxPerBlock) {
-            logr.debug('invalid block too many txs')
+            logr.error('invalid block too many txs')
             cb(false); return
         }
         if (!newBlock.miner || typeof newBlock.miner !== 'string') {
-            logr.debug('invalid block miner')
+            logr.error('invalid block miner')
             cb(false); return
         }
         if (verifyHashAndSignature && (!newBlock.hash || typeof newBlock.hash !== 'string')) {
-            logr.debug('invalid block hash')
+            logr.error('invalid block hash')
             cb(false); return
         }
         if (verifyHashAndSignature && (!newBlock.signature || typeof newBlock.signature !== 'string')) {
-            logr.debug('invalid block signature')
+            logr.error('invalid block signature')
             cb(false); return
         }
         if (newBlock.missedBy && typeof newBlock.missedBy !== 'string') 
-            logr.debug('invalid block missedBy')
+            logr.error('invalid block missedBy')
            
 
         // verify that its indeed the next block
         var previousBlock = chain.getLatestBlock()
         if (previousBlock._id + 1 !== newBlock._id) {
-            logr.debug('invalid index')
+            logr.error('invalid index')
             cb(false); return
         }
         // from the same chain
         if (previousBlock.hash !== newBlock.phash) {
-            logr.debug('invalid phash')
+            logr.error('invalid phash')
             cb(false); return
         }
 
         // check if miner isnt trying to fast forward time
         // this might need to be tuned in the future to allow for network delay / clocks desync / etc
         if (newBlock.timestamp > new Date().getTime() + config.maxDrift) {
-            logr.debug('timestamp from the future', newBlock.timestamp, new Date().getTime())
+            logr.error('timestamp from the future', newBlock.timestamp, new Date().getTime())
             cb(false); return
         }
 
@@ -730,6 +743,82 @@ chain = {
         for (const hash in chain.recentTxs)
             if (chain.recentTxs[hash].ts + config.txExpirationTime < chain.getLatestBlock().timestamp)
                 delete chain.recentTxs[hash]
+    },
+    rebuildState: (blockNum,cb) => {
+        // If chain shutting down, stop rebuilding and output last number for resuming
+        if (chain.shuttingDown)
+            return cb(null,blockNum)
+            
+        // Genesis block is handled differently
+        if (blockNum === 0) {
+            chain.recentBlocks = [chain.getGenesisBlock()]
+            chain.minerSchedule(chain.getGenesisBlock(),(sch) => {
+                chain.schedule = sch
+                chain.rebuildState(blockNum+1,cb)
+            })
+            return
+        }
+
+        db.collection('blocks').findOne({ _id: blockNum },(e,blockToRebuild) => {
+            if (e)
+                return cb(e,blockNum)
+            if (!blockToRebuild)
+                // Rebuild is complete
+                return cb(null,blockNum)
+            
+            // Validate block and transactions, then execute them
+            chain.isValidNewBlock(blockToRebuild,true,true,(isValid) => {
+                if (!isValid)
+                    return cb(true, blockNum)
+                chain.executeBlockTransactions(blockToRebuild,false,true,(validTxs,dist,burn) => {
+                    // if any transaction is wrong, thats a fatal error
+                    // transactions should have been verified in isValidNewBlock
+                    if (blockToRebuild.txs.length !== validTxs.length) {
+                        logr.fatal('Invalid tx(s) in block found after starting execution')
+                        return cb('Invalid tx(s) in block found after starting execution', blockNum)
+                    }
+
+                    // error if distributed or burned computed amounts are different than the reported one
+                    let blockDist = blockToRebuild.dist || 0
+                    if (blockDist !== dist)
+                        return cb('Wrong dist amount ' + blockDist + ' ' + dist, blockNum)
+
+                    let blockBurn = blockToRebuild.burn || 0
+                    if (blockBurn !== burn) 
+                        return cb('Wrong burn amount ' + blockBurn + ' ' + burn, blockNum)
+                    
+                    // update the config if an update was scheduled
+                    config = require('./config.js').read(blockToRebuild._id)
+                    eco.nextBlock()
+                    chain.cleanMemory()
+
+                    cache.writeToDisk(() => {
+                        if (blockToRebuild._id % config.leaders === 0) 
+                            chain.minerSchedule(blockToRebuild, function(minerSchedule) {
+                                chain.schedule = minerSchedule
+                                chain.recentBlocks.push(blockToRebuild)
+                                chain.output(blockToRebuild, true)
+                                
+                                // process notifications (non blocking)
+                                notifications.processBlock(blockToRebuild)
+
+                                // next block
+                                chain.rebuildState(blockNum+1, cb)
+                            })
+                        else {
+                            chain.recentBlocks.push(blockToRebuild)
+                            chain.output(blockToRebuild, true)
+
+                            // process notifications (non blocking)
+                            notifications.processBlock(blockToRebuild)
+
+                            // next block
+                            chain.rebuildState(blockNum+1, cb)
+                        }
+                    })
+                })
+            })
+        })
     }
 }
 

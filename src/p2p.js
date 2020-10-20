@@ -1,3 +1,4 @@
+const version = '1.2'
 const default_port = 6001
 const replay_interval = 1500
 const discovery_interval = 60000
@@ -155,7 +156,7 @@ var p2p = {
                     nodeId: message.d.nodeId
                 }
 
-                var sign = secp256k1.sign(Buffer.from(message.d.random, 'hex'), bs58.decode(p2p.nodeId.priv))
+                var sign = secp256k1.ecdsaSign(Buffer.from(message.d.random, 'hex'), bs58.decode(p2p.nodeId.priv))
                 sign = bs58.encode(sign.signature)
 
                 var d = {
@@ -164,6 +165,7 @@ var p2p = {
                     head_block_hash: chain.getLatestBlock().hash,
                     previous_block_hash: chain.getLatestBlock().phash,
                     nodeId: p2p.nodeId.pub,
+                    version: version,
                     sign: sign
                 }
                 p2p.sendJSON(ws, {t: MessageType.NODE_STATUS, d:d})
@@ -179,9 +181,9 @@ var p2p = {
                     if (!challengeHash)
                         return
                     try {
-                        var isValidSignature = secp256k1.verify(
-                            Buffer.from(challengeHash, 'hex'),
+                        var isValidSignature = secp256k1.ecdsaVerify(
                             bs58.decode(message.d.sign),
+                            Buffer.from(challengeHash, 'hex'),
                             bs58.decode(nodeId))
                         if (!isValidSignature) {
                             logr.warn('Wrong NODE_STATUS signature, disconnecting')
@@ -273,6 +275,13 @@ var p2p = {
                 // it should come from one of the elected leaders, so let's verify signature
                 if (p2p.recovering) return
                 if (!message.s || !message.s.s || !message.s.n) return
+                if (config.tmpForceTs) {
+                    if (!message.d || !message.d.ts || 
+                        typeof message.d.ts != 'number' ||
+                        message.d.ts + 2*config.blockTime < new Date().getTime() ||
+                        message.d.ts - 2*config.blockTime > new Date().getTime()) return
+                }
+
                 logr.cons(message.s.n+' U-R'+message.d.r)
 
                 if (p2p.sockets[p2p.sockets.indexOf(ws)]) {
@@ -370,10 +379,7 @@ var p2p = {
             for (let y = 0; y < p2p.sockets[i].sentUs.length; y++) 
                 if (p2p.sockets[i].sentUs[y][0] === d.s.s)
                     continue firstLoop
-            setTimeout(function() {
-                p2p.sendJSON(p2p.sockets[i], d)
-            }, 550*Math.random())
-            
+            p2p.sendJSON(p2p.sockets[i], d)
         }
     },
     broadcast: (d) => p2p.sockets.forEach(ws => p2p.sendJSON(ws, d)),

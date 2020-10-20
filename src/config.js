@@ -1,13 +1,12 @@
 var config = {
     history: {
         0: {
-            // this is configuration for testnet2
-            // the account pricing options
-            // see: https://www.wolframalpha.com/input/?i=plot+10%2B100*(1.1%5E(14-x))+from+x%3D1+to+x%3D40
-            accountPriceBase: 10000,
-            accountPriceCharMult: 1.3,
-            accountPriceChars: 8,
-            accountPriceMin: 1,
+            // this is configuration for mainnet
+            // wip
+            accountPriceBase: 20000,
+            accountPriceCharMult: 4,
+            accountPriceChars: 5,
+            accountPriceMin: 200,
             accountMaxLength: 50,
             accountMinLength: 1,
             // allowed username chars
@@ -37,6 +36,8 @@ var config = {
             ecoClaimPrecision: 3,
             // the required number of ms before a vote reward can be claimed
             ecoClaimTime: 604800000, // 7 days
+            // can the first vote rewards be altered by downvotes like other votes
+            ecoPunishAuthor: true,
             // the percentage of coins that are burnt when there are opposite votes with rewards
             ecoPunishPercent: 0.5,
             // the number of ms before a vote reaches 100% rentability
@@ -91,13 +92,13 @@ var config = {
             // the maximum number of mentions triggering a notification
             notifMaxMentions: 10,
             // the sha256sum hash of block 0 (new origin hash -> new chain)
-            originHash: '8cca1ec6d023d0182cc1501ef62af9ba9b0e20499e218cf400805b6d8764182d',
+            originHash: 'da5fe18d0844f1f97bf5a94e7780dec18b4ab015e32383ede77158e059bacbb2',
             // the default number of random bytes to use for new key generation
             randomBytesLength: 32,
             // the minimum hourly reward pool (including leader rewards)
             rewardPoolMin: 1,
             // the multiplier for the reward pool, modifying it is a bad practise
-            rewardPoolMult: 80, // 0.40 DTC / active user / cycle => 1.2 DTC / active user / day
+            rewardPoolMult: 5, // 0.05 DTC / user / cycle => 1.05 DTC / user / week
             // the maximum share of the reward pool a single distribution can generate
             rewardPoolMaxShare: 0.1,
             // the estimated number of active users on the network
@@ -105,13 +106,13 @@ var config = {
             // the maximum length of tags (on votes)
             tagMaxLength: 25,
             tagMaxPerContent: 5,
+            tmpForceTs: true,
             // the time after which transactions expire and wont be accepted by nodes anymore
             txExpirationTime: 60000,
             // limit which transactions are available
             // key: transaction id (see transaction.js:TransactionType)
             // value: null/0 (default): enabled, 1: disabled, 2: master-only
             txLimits: {
-                0: 2,
                 14: 2,
                 15: 2,
                 19: 1,

@@ -166,7 +166,7 @@ var consensus = {
                             i--
                             continue
                         }
-                        if (consensus.queue[i].d.b.ts + 2*config.blockTime < new Date().getTime()) {
+                        if (consensus.queue[i].d.ts + 2*config.blockTime < new Date().getTime()) {
                             consensus.queue.splice(i, 1)
                             i--
                         }
@@ -196,7 +196,7 @@ var consensus = {
             }
             if (block.miner === process.env.NODE_OWNER && round === 0)
                 onlyBlockHash = block
-            var signed = consensus.signMessage({t:6, d:{r:round, b: onlyBlockHash}})
+            var signed = consensus.signMessage({t:6, d:{r:round, b: onlyBlockHash, ts: new Date().getTime()}})
             p2p.broadcast(signed)
         }
 
@@ -225,7 +225,7 @@ var consensus = {
     },
     signMessage: (message) => {
         var hash = CryptoJS.SHA256(JSON.stringify(message)).toString()
-        var signature = secp256k1.sign(Buffer.from(hash, 'hex'), bs58.decode(process.env.NODE_OWNER_PRIV))
+        var signature = secp256k1.ecdsaSign(Buffer.from(hash, 'hex'), bs58.decode(process.env.NODE_OWNER_PRIV))
         signature = bs58.encode(signature.signature)
         message.s = {
             n: process.env.NODE_OWNER,
@@ -244,9 +244,9 @@ var consensus = {
         delete tmpMess.s
         var hash = CryptoJS.SHA256(JSON.stringify(tmpMess)).toString()
         var pub = consensus.getActiveLeaderKey(name)
-        if (pub && secp256k1.verify(
-            Buffer.from(hash, 'hex'),
+        if (pub && secp256k1.ecdsaVerify(
             bs58.decode(sign),
+            Buffer.from(hash, 'hex'),
             bs58.decode(pub))) {
             cb(true)
             return
