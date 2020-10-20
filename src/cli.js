@@ -16,13 +16,13 @@ program
     .option('-F, --file [file_key]', 'file private key')
     .option('-M, --me [my_username]', 'username of the transactor')
     .option('-A, --api [api_url]', 'avalon api url')
+    .option('-W, --wait', 'wait for transaction confirmation')
     .option('-S, --spam [delay_in_ms]', 'repeats the tx every delay')
 
 program.command('account <pub_key> <new_user>')
     .description('create a new account')
     .action(function(pubKey, newUser) {
-        verifyKeyAndUser()
-        sendTx(cmds.createAccount(program.key, program.me, pubKey, newUser))
+        verifyAndSendTx('createAccount', pubKey, newUser)
     }).on('--help', function(){
         writeLine('')
         writeLine('Extra Info:')
@@ -37,8 +37,7 @@ program.command('account <pub_key> <new_user>')
 program.command('claim <author> <link>')
     .description('claims rewards associated with a past vote')
     .action(function(author, link) {
-        verifyKeyAndUser()
-        sendTx(cmds.claimReward(program.key, program.me, author, link))
+        verifyAndSendTx('claimReward', author, link)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -52,8 +51,7 @@ program.command('claim <author> <link>')
 program.command('comment <link> <pa> <pp> <json> <vt> <tag>')
     .description('publish a new JSON content')
     .action(function(link, pa, pp, json, vt, tag) {
-        verifyKeyAndUser()
-        sendTx(cmds.comment(program.key, program.me, link, pa, pp, json, vt, tag))
+        verifyAndSendTx('comment', link, pa, pp, json, vt, tag)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -72,8 +70,7 @@ program.command('comment <link> <pa> <pp> <json> <vt> <tag>')
 program.command('enable-node <pub>')
     .description('enable a node for producing blocks')
     .action(function(pub) {
-        verifyKeyAndUser()
-        sendTx(cmds.enableNode(program.key, program.me, pub))
+        verifyAndSendTx('enableNode', pub)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -95,8 +92,7 @@ program.command('follow <target>')
     .alias('subscribe')
     .description('start following another user')
     .action(function(target) {
-        verifyKeyAndUser()
-        sendTx(cmds.follow(program.key, program.me, target))
+        verifyAndSendTx('follow', target)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -163,8 +159,7 @@ program.command('license')
 program.command('limit-vt')
     .description('limit your account maximum VT')
     .action(function(amount) {
-        verifyKeyAndUser()
-        sendTx(cmds.limitVt(program.key, program.me, amount))
+        verifyAndSendTx('limitVt', amount)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -180,8 +175,7 @@ program.command('limit-vt')
 program.command('new-key <id> <pub> <allowed_txs>')
     .description('add new key with custom perms')
     .action(function(id, pub, allowedTxs) {
-        verifyKeyAndUser()
-        sendTx(cmds.newKey(program.key, program.me, id, pub, allowedTxs))
+        verifyAndSendTx('newKey', id, pub, allowedTxs)
     }).on('--help', function(){
         writeLine('')
         writeLine('Transaction Types:')
@@ -196,8 +190,7 @@ program.command('new-key <id> <pub> <allowed_txs>')
 program.command('password <pub>')
     .description('change your master key')
     .action(function(pub) {
-        verifyKeyAndUser()
-        sendTx(cmds.changePassword(program.key, program.me, pub))
+        verifyAndSendTx('changePassword', pub)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -214,8 +207,7 @@ program.command('profile <json>')
     .alias('user-json')
     .description('modify an account profile')
     .action(function(json) {
-        verifyKeyAndUser()
-        sendTx(cmds.profile(program.key, program.me, json))
+        verifyAndSendTx('profile', json)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -225,8 +217,7 @@ program.command('profile <json>')
 program.command('promote <link> <pa> <pp> <json> <vt> <tag> <burn>')
     .description('publish and promote')
     .action(function(link, pa, pp, json, vt, tag, burn) {
-        verifyKeyAndUser()
-        sendTx(cmds.promotedComment(program.key, program.me, link, pa, pp, json, vt, tag, burn))
+        verifyAndSendTx('promotedComment', link, pa, pp, json, vt, tag, burn)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -245,11 +236,22 @@ program.command('promote <link> <pa> <pp> <json> <vt> <tag> <burn>')
         writeLine('  $ promote big-video \'\' \'\' \'{"title": "Check this out"}\' 777 my-tag 10 -F key.json -M alice')
     })
 
+program.command('public')
+    .description('get public key from private key')
+    .action(function() {
+        readKeyFromFile()
+        writeLine(bs58.encode(secp256k1.publicKeyCreate(bs58.decode(program.key))))
+    }).on('--help', function(){
+        writeLine('')
+        writeLine('Examples:')
+        writeLine('  $ public -K 34EpMEDFJwKbxaF7FhhLyEe3AhpM4dwHMLVfs4JyRto5')
+        writeLine('  $ public -F key.json')
+    })
+
 program.command('remove-key <id>')
     .description('remove a previously added key')
     .action(function(id) {
-        verifyKeyAndUser()
-        sendTx(cmds.removeKey(program.key, program.me, id))
+        verifyAndSendTx('removeKey', id)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -259,7 +261,7 @@ program.command('remove-key <id>')
 program.command('sign <transaction>')
     .description('sign a tx w/o broadcasting')
     .action(function(transaction) {
-        verifyKeyAndUser()
+        readKeyFromFile()
         writeLine(JSON.stringify(cmds.sign(program.key, program.me, transaction)))
     }).on('--help', function(){
         writeLine('')
@@ -267,27 +269,26 @@ program.command('sign <transaction>')
         writeLine('  $ sign \'{"type":1,"data":{"target":"bob"}}\' -F key.json -M alice')
     })
 
-program.command('transfer <receiver> <amount> [memo]')
+program.command('transfer <receiver> <amount>')
     .alias('xfer')
     .option('--memo [text]', 'add a short message to the transfer')    
     .description('transfer coins')
     .action(function(receiver, amount, options) {
-        verifyKeyAndUser()
         var memo = ''
         if (options && options.memo) memo = options.memo
-        sendTx(cmds.transfer(program.key, program.me, receiver, amount, memo))
+        verifyAndSendTx('transfer', receiver, amount, memo)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
-        writeLine('  $ transfer bob 777 "thank you" -F key.json -M alice')
+        writeLine('  $ transfer alice 1000 -F key.json -M bob')
+        writeLine('  $ transfer bob 777 --memo "thank you" -F key.json -M alice')
     })
 
 program.command('transfer-bw <receiver> <amount>')
     .alias('xfer-bw')
     .description('transfer bandwidth')
     .action(function(receiver, amount) {
-        verifyKeyAndUser()
-        sendTx(cmds.transferBw(program.key, program.me, receiver, amount))
+        verifyAndSendTx('transferBw', receiver, amount)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -298,8 +299,7 @@ program.command('transfer-vp <receiver> <amount>')
     .alias('xfer-vp')
     .description('transfer voting power')
     .action(function(receiver, amount) {
-        verifyKeyAndUser()
-        sendTx(cmds.transferVt(program.key, program.me, receiver, amount))
+        verifyAndSendTx('transferVt', receiver, amount)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -310,8 +310,7 @@ program.command('unfollow <target>')
     .alias('unsubscribe')
     .description('stop following another user ')
     .action(function(target) {
-        verifyKeyAndUser()
-        sendTx(cmds.unfollow(program.key, program.me, target))
+        verifyAndSendTx('unfollow', target)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -321,8 +320,7 @@ program.command('unfollow <target>')
 program.command('unvote-leader <leader>')
     .description('remove a leader vote')
     .action(function(leader) {
-        verifyKeyAndUser()
-        sendTx(cmds.disapproveNode(program.key, program.me, leader))
+        verifyAndSendTx('disapproveNode', leader)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -332,8 +330,7 @@ program.command('unvote-leader <leader>')
 program.command('vote <link> <author> <vt> <tag>')
     .description('vote for a content')
     .action(function(link, author, vt, tag) {
-        verifyKeyAndUser()
-        sendTx(cmds.vote(program.key, program.me, link, author, vt, tag))
+        verifyAndSendTx('vote', link, author, vt, tag)
     }).on('--help', function(){
         writeLine('')
         writeLine('Arguments:')
@@ -349,8 +346,7 @@ program.command('vote <link> <author> <vt> <tag>')
 program.command('vote-leader <leader>')
     .description('vote for a leader')
     .action(function(leader) {
-        verifyKeyAndUser()
-        sendTx(cmds.approveNode(program.key, program.me, leader))
+        verifyAndSendTx('approveNode', leader)
     }).on('--help', function(){
         writeLine('')
         writeLine('Example:')
@@ -368,6 +364,13 @@ program.parse(process.argv)
 
 function writeLine(str){process.stdout.write(str+'\n')}
 
+function verifyAndSendTx(txType, ...args) {
+    verifyKeyAndUser(function() {
+        let tx = cmds[txType](program.key, program.me, ...args)
+        sendTx(tx)
+    })
+}
+
 function sendTx(tx) {
     var port = process.env.API_PORT || defaultPort
     var ip = process.env.API_IP || '[::1]'
@@ -375,6 +378,8 @@ function sendTx(tx) {
     var url = protocol+'://'+ip+':'+port+'/transact'
     if (program.api)
         url = program.api+'/transact'
+    if (program.wait)
+        url += 'WaitConfirm'
     fetch(url, {
         method: 'post',
         headers: {
@@ -399,15 +404,8 @@ function sendTx(tx) {
         }, program.spam)
 }
 
-function verifyKeyAndUser() {
-    if (program.file) {
-        var file = fs.readFileSync(program.file, 'utf8')
-        try {
-            program.key = JSON.parse(file).priv
-        } catch (error) {
-            program.key = file.trim()
-        }
-    }
+function verifyKeyAndUser(cb) {
+    readKeyFromFile()
     if (!program.key) {
         writeLine('no key?')
         process.exit(1)
@@ -421,7 +419,10 @@ function verifyKeyAndUser() {
     let port = process.env.API_PORT || defaultPort
     let ip = process.env.API_IP || '[::1]'
     let protocol = process.env.API_PROTOCOL || 'http'
-    let getAccUrl = protocol + '://' + ip + ':' + port + '/accounts/' + program.me
+    let apiUrl = protocol + '://' + ip + ':' + port
+    if (program.api)
+        apiUrl = program.api
+    let getAccUrl = apiUrl + '/accounts/' + program.me
     fetch(getAccUrl)
         .then((res) => {return res.json()})
         .then((json) => {
@@ -429,5 +430,20 @@ function verifyKeyAndUser() {
                 writeLine('Username doesn\'t exist. Is your node fully replayed?')
                 process.exit(1)
             }
+            cb()
+        }).catch((err) => {
+            writeLine(err.message)
+            process.exit(1)
         })
+}
+
+function readKeyFromFile() {
+    if (program.file) {
+        var file = fs.readFileSync(program.file, 'utf8')
+        try {
+            program.key = JSON.parse(file).priv
+        } catch (error) {
+            program.key = file.trim()
+        }
+    }
 }
