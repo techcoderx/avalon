@@ -40,7 +40,7 @@ module.exports = {
         if (qualities.length == 0) {
             cb(false, 'invalid tx.data.hash missing stream qualities'); return
         } else if (qualities.length > config.streamMaxQualities) {
-            cb(false, 'invalid tx.data.hash exceeded streamMaxQualities')
+            cb(false, 'invalid tx.data.hash exceeded streamMaxQualities'); return
         }
 
         qualities.sort()
