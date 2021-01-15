@@ -711,10 +711,9 @@ var http = {
                 if (!stream) return res.status(404).send()
                 let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0'
                 let gw = req.query.gw || 'http://localhost:8080/ipfs/'
-                let availqualities = Object.keys(stream.chunks).sort()
-                let quality = req.query.quality || availqualities[availqualities.length - 1]
+                let quality = req.query.quality || 'src'
 
-                if (!availqualities.includes(quality))
+                if (!stream[quality] || (quality !== 'src' && !config.streamRes.includes(quality)))
                     return res.status(404).send()
 
                 // video on demand if livestream ended
@@ -723,7 +722,7 @@ var http = {
 
                 for (let c = 0; c < stream.len.length; c++) {
                     m3u8File += '#EXTINF:' + stream.len[c] + ',\n'
-                    m3u8File += gw + stream.chunks[quality][c] + '\n'
+                    m3u8File += gw + stream[quality][c] + '\n'
                 }
                 if (stream.ended) m3u8File += '#EXT-X-ENDLIST'
                 res.setHeader('Content-Type', 'text/plain')
