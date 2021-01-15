@@ -121,14 +121,14 @@ var config = {
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
             vtPerBurn: 6 // can be updated in the future to modify incentives
         },
-        100: {
+        50: {
             // Livestream HF
             txLimits: {
                 19: 0,
                 20: 0
             },
-            // maximum number of livestream qualities
-            streamMaxQualities: 10,
+            // supported livestream qualities
+            streamRes: ['240','480','720','1080'],
             // maximum number of livestream chunks (48 hours)
             streamMaxChunks: 17280,
             // min and max length of stream chunk hashes

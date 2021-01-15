@@ -94,37 +94,18 @@ var cache = {
 
                 case '$push':
                     for (var p in changes[c]) {
-                        if (p.includes('.')) {
-                            // 2 layers deep
-                            let q = p.split('.')
-                            if (!cache[collection][obj[key]][q[0]])
-                                cache[collection][obj[key]][q[0]] = {}
-                            if (!cache[collection][obj[key]][q[0]][q[1]])
-                                cache[collection][obj[key]][q[0]][q[1]] = []
-                            
-                            // $each operator for multiple append
-                            if (typeof changes[c][p] === 'object') {
-                                let modifiers = Object.keys(changes[c][p])
-                                if (modifiers.includes('$each'))
-                                    cache[collection][obj[key]][q[0]][q[1]] = cache[collection][obj[key]][q[0]][q[1]].concat(changes[c][p]['$each'])
-                                else
-                                    cache[collection][obj[key]][q[0]][q[1]].push(changes[c][p])
-                            } else
-                                cache[collection][obj[key]][q[0]][q[1]].push(changes[c][p])
-                        } else {
-                            if (!cache[collection][obj[key]][p])
-                                cache[collection][obj[key]][p] = []
-                            
-                            // $each operator for multiple append
-                            if (typeof changes[c][p] === 'object') {
-                                let modifiers = Object.keys(changes[c][p])
-                                if (modifiers.includes('$each'))
-                                    cache[collection][obj[key]][p] = cache[collection][obj[key]][p].concat(changes[c][p]['$each'])
-                                else
-                                    cache[collection][obj[key]][p].push(changes[c][p])
-                            } else 
+                        if (!cache[collection][obj[key]][p])
+                            cache[collection][obj[key]][p] = []
+                        
+                        // $each operator for multiple append
+                        if (typeof changes[c][p] === 'object') {
+                            let modifiers = Object.keys(changes[c][p])
+                            if (modifiers.includes('$each'))
+                                cache[collection][obj[key]][p] = cache[collection][obj[key]][p].concat(changes[c][p]['$each'])
+                            else
                                 cache[collection][obj[key]][p].push(changes[c][p])
-                        }
+                        } else 
+                            cache[collection][obj[key]][p].push(changes[c][p])
                     }
                     break
 
