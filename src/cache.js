@@ -101,7 +101,8 @@ var cache = {
                         if (typeof changes[c][p] === 'object') {
                             let modifiers = Object.keys(changes[c][p])
                             if (modifiers.includes('$each'))
-                                cache[collection][obj[key]][p] = cache[collection][obj[key]][p].concat(changes[c][p]['$each'])
+                                for (let itm in changes[c][p]['$each'])
+                                    cache[collection][obj[key]][p].push(changes[c][p]['$each'][itm])
                             else
                                 cache[collection][obj[key]][p].push(changes[c][p])
                         } else 
