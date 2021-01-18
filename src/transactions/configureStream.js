@@ -10,7 +10,7 @@ module.exports = {
 
         cache.findOne('streams',{_id: tx.sender + '/' + tx.data.link},(e,stream) => {
             if (e) throw e
-            if (stream.ended)
+            if (stream && stream.ended)
                 return cb(false, 'stream already ended')
 
             cb(true)
