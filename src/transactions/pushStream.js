@@ -52,7 +52,8 @@ module.exports = {
                     _id: tx.sender + '/' + tx.data.link,
                     author: tx.sender,
                     link: tx.data.link,
-                    ts: ts,
+                    createdTs: ts,
+                    lastTs: ts,
                     ended: false,
                     len: tx.data.len,
                     src: tx.data.src
@@ -69,9 +70,10 @@ module.exports = {
                 // Subsequent chunks
                 let updateOp = {
                     $push: {
-                        "len": { $each: tx.data.len },
-                        "src": { $each: tx.data.src }
-                    }
+                        len: { $each: tx.data.len },
+                        src: { $each: tx.data.src }
+                    },
+                    $set: { lastTs: ts }
                 }
 
                 for (let i in config.streamRes)
