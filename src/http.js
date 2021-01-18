@@ -9,6 +9,7 @@ const { extract } = require('oembed-parser')
 const ogs = require('open-graph-scraper')
 const series = require('run-series')
 const transaction = require('./transaction.js')
+const AliveDB = require('./alivedb')
 const timeout_transact_async = 7500
 
 var http = {
@@ -707,7 +708,7 @@ var http = {
                 return res.status(400).send()
             db.collection('streams').findOne({
                 _id: req.params.author + '/' + req.params.link
-            },(err,stream) => {
+            },async (err,stream) => {
                 if (!stream) return res.status(404).send()
                 let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0'
                 let gw = req.query.gw || 'http://localhost:8080/ipfs/'
@@ -724,7 +725,18 @@ var http = {
                     m3u8File += '#EXTINF:' + stream.len[c] + ',\n'
                     m3u8File += gw + stream[quality][c] + '\n'
                 }
-                if (stream.ended) m3u8File += '#EXT-X-ENDLIST'
+
+                if (stream.ended)
+                    m3u8File += '#EXT-X-ENDLIST'
+                else if (stream.pub) {
+                    // Fetch more stream hashes from AliveDB if any
+                    let gunStreams = await AliveDB.getListFromUser(stream.pub,'dtc/'+req.params.author+'/'+req.params.link,false,stream.lastTs)
+                    for (let s = 0; s < gunStreams.length; s++) if (gunStreams[s][quality]) {
+                        m3u8File += '#EXTINF:' + gunStreams[s].len + ',\n'
+                        m3u8File += gw + gunStreams[s][quality] + '\n'
+                    }
+                }
+
                 res.setHeader('Content-Type', 'text/plain')
                 res.status(200).send(m3u8File)
             })
