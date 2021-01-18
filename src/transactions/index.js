@@ -23,7 +23,8 @@ var transactions = [
     require('./claimReward.js'),
     require('./enableNode.js'),
     require('./pushStream.js'),
-    require('./endStream.js')
+    require('./endStream.js'),
+    require('./configureStream.js')
 ]
 
 module.exports = {
@@ -48,7 +49,8 @@ module.exports = {
         CLAIM_REWARD: 17,
         ENABLE_NODE: 18,
         PUSH_STREAM: 19,
-        END_STREAM: 20
+        END_STREAM: 20,
+        CONFIGURE_STREAM: 21
     },
     validate: (tx, ts, legitUser, cb) => {
         // logr.debug('tx:'+tx.type+' validation begins')

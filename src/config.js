@@ -17,6 +17,8 @@ var config = {
             b58Alphabet: '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
             // base64 characters for Skylinks
             b64Alphabet: '123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_',
+            // base65 characters for AliveDB public keys
+            b65Alphabet: '123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.',
             // the block #0 genesis timestamp
             block0ts: 1601477849000,
             // the block time in ms
@@ -115,7 +117,8 @@ var config = {
                 14: 2,
                 15: 2,
                 19: 1,
-                20: 1
+                20: 1,
+                21: 1
             },
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
@@ -125,8 +128,11 @@ var config = {
             // Livestream HF
             txLimits: {
                 19: 0,
-                20: 0
+                20: 0,
+                21: 0
             },
+            // AliveDB public key length
+            streamPubLength: 87,
             // supported livestream qualities
             streamRes: ['240','480','720','1080'],
             // maximum number of livestream chunks (48 hours)
