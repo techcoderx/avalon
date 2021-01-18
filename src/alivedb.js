@@ -1,6 +1,6 @@
 const http = require('http').createServer()
 const GunDB = require('gun')
-const Gun = GunDB({ web: http, peers: process.env.ALIVEDB_PEERS.split(',') })
+const Gun = GunDB({ web: http, peers: (process.env.ALIVEDB_PEERS || '').split(',') })
 
 let alivedb = {
     init: () => {
