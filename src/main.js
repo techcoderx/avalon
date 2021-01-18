@@ -11,6 +11,7 @@ validate = require('./validate')
 eco = require('./economics.js')
 rankings = require('./rankings.js')
 consensus = require('./consensus')
+AliveDB = require('./alivedb')
 
 // verify node version
 var allowNodeV = [10, 12, 14]
@@ -91,6 +92,8 @@ function startDaemon() {
 
     // init hot/trending
     rankings.init()
+    // start alivedb server
+    AliveDB.init()
     // start the http server
     http.init()
     // start the websocket server
