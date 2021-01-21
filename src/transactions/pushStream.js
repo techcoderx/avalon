@@ -68,13 +68,7 @@ module.exports = {
                 })
             } else {
                 // Subsequent chunks
-                let updateOp = {
-                    $push: {
-                        len: { $each: tx.data.len },
-                        src: { $each: tx.data.src }
-                    },
-                    $set: { lastTs: ts }
-                }
+                let updateOp = {$set: { lastTs: ts }}
 
                 if (stream.len) {
                     updateOp['$push'] = {
