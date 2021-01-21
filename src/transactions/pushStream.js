@@ -37,7 +37,7 @@ module.exports = {
             if (stream) {
                 if (stream.ended)
                     return cb(false, 'stream already ended')
-                for (let i in config.streamRes)
+                if (stream.len) for (let i in config.streamRes)
                     if (stream[config.streamRes[i]] && !tx.data[config.streamRes[i]] || !stream[config.streamRes[i]] && tx.data[config.streamRes[i]])
                         return cb(false, 'stream quality' + config.streamRes[i] + 'do not match')
             }
@@ -76,9 +76,23 @@ module.exports = {
                     $set: { lastTs: ts }
                 }
 
-                for (let i in config.streamRes)
-                    if (tx.data[config.streamRes[i]])
-                        updateOp['$push'][config.streamRes[i]] = { $each: tx.data[config.streamRes[i]] }
+                if (stream.len) {
+                    updateOp['$push'] = {
+                        len: { $each: tx.data.len },
+                        src: { $each: tx.data.src }
+                    }
+                    for (let i in config.streamRes)
+                        if (tx.data[config.streamRes[i]])
+                            updateOp['$push'][config.streamRes[i]] = { $each: tx.data[config.streamRes[i]] }
+                } else {
+                    updateOp['$set'] = {
+                        len: tx.data.len,
+                        src: tx.data.src
+                    }
+                    for (let i in config.streamRes)
+                        if (tx.data[config.streamRes[i]])
+                            updateOp['$set'][config.streamRes[i]] = tx.data[config.streamRes[i]]
+                }
                 
                 // Automatically end streams if limit is hit
                 if (stream.len.length + tx.data.len.length >= config.streamMaxChunks)

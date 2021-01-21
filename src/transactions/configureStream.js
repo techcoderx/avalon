@@ -27,9 +27,7 @@ module.exports = {
                     pub: tx.data.pub,
                     createdTs: ts,
                     lastTs: ts,
-                    ended: false,
-                    len: [],
-                    src: []
+                    ended: false
                 },() => cb(true))
             } else {
                 // Existing stream
