@@ -127,6 +127,8 @@ var config = {
         50: {
             // Livestream HF
             txLimits: {
+                14: 2,
+                15: 2,
                 19: 0,
                 20: 0,
                 21: 0
