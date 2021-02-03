@@ -702,6 +702,31 @@ var http = {
             })
         })
 
+        // get stream info
+        app.get('/streaminfo/:author/:link',(req,res) => {
+            if (!req.params.author || typeof req.params.link !== 'string')
+                return res.status(400).send()
+            db.collection('streams').findOne({
+                _id: req.params.author + '/' + req.params.link
+            },async (err,stream) => {
+                if (!stream) return res.status(404).send()
+                if (stream.len) {
+                    stream.count = stream.len.length
+                    stream.len = stream.len.reduce((a,b) => a + b,0)
+                }
+                delete stream.src
+                for (let i in config.streamRes) delete stream[config.streamRes[i]]
+                if (stream.pub) {
+                    // Fetch more stream hashes from AliveDB if any
+                    let gunStreams = await AliveDB.getListFromUser(stream.pub,'dtc/'+req.params.author+'/'+req.params.link,false,stream.lastTs)
+                    for (let s = 0; s < gunStreams.length; s++) if (gunStreams[s][quality])
+                        stream.len += gunStreams[s].len
+                }
+                res.status(200).send(stream)
+            })
+        })
+
+        // stream m3u8 playlist
         app.get('/stream/:author/:link', (req,res) => {
             if (!req.params.author || typeof req.params.link !== 'string')
                 return res.status(400).send()
