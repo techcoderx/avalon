@@ -719,8 +719,10 @@ var http = {
                 if (stream.pub) {
                     // Fetch more stream hashes from AliveDB if any
                     let gunStreams = await AliveDB.getListFromUser(stream.pub,'dtc/'+req.params.author+'/'+req.params.link,false,stream.lastTs)
-                    for (let s = 0; s < gunStreams.length; s++) if (gunStreams[s][quality])
+                    for (let s = 0; s < gunStreams.length; s++) {
                         stream.len += gunStreams[s].len
+                        count++
+                    }
                 }
                 res.status(200).send(stream)
             })
