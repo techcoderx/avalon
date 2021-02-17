@@ -779,7 +779,7 @@ var http = {
                 _id: req.params.author + '/' + req.params.link
             },async (err,stream) => {
                 if (!stream) return res.status(404).send()
-                let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n\n'
+                let m3u8File = '#EXTM3U\n\n'
                 let gw = req.query.gw || 'http://localhost:8080/ipfs/'
 
                 for (let q in stream) {
