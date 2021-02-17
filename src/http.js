@@ -771,6 +771,41 @@ var http = {
             })
         })
 
+        // m3u8 master playlist
+        app.get('/stream/:author/:link/master', (req,res) => {
+            if (!req.params.author || typeof req.params.link !== 'string')
+                return res.status(400).send()
+            db.collection('streams').findOne({
+                _id: req.params.author + '/' + req.params.link
+            },async (err,stream) => {
+                if (!stream) return res.status(404).send()
+                let m3u8File = '#EXTM3U\n#EXT-X-VERSION:3\n\n'
+                let gw = req.query.gw || 'http://localhost:8080/ipfs/'
+
+                for (let q in stream) {
+                    if (q === '240') {
+                        m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=350000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=427x240\n'
+                        m3u8File += req.params.author + '/' + req.params.link + '?quality=240&gw=' + gw + '\n\n'
+                    } else if (q === '480') {
+                        m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=700000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=853x480\n'
+                        m3u8File += req.params.author + '/' + req.params.link + '?quality=480&gw=' + gw + '\n\n'
+                    } else if (q === '720') {
+                        m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=1280x720\n'
+                        m3u8File += req.params.author + '/' + req.params.link + '?quality=720&gw=' + gw + '\n\n'
+                    } else if (q === '1080') {
+                        m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1600000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=1920x1080\n'
+                        m3u8File += req.params.author + '/' + req.params.link + '?quality=1080&gw=' + gw + '\n\n'
+                    } else if (q === 'src') {
+                        m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1600000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=src\n'
+                        m3u8File += req.params.author + '/' + req.params.link + '?quality=src&gw=' + gw + '\n\n'
+                    }
+                }
+
+                res.setHeader('Content-Type', 'text/plain')
+                res.status(200).send(m3u8File)
+            })
+        })
+
         // get current chain config
         app.get('/config', (req, res) => {
             res.send(config)
