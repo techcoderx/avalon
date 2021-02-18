@@ -785,19 +785,19 @@ var http = {
                 for (let q in stream) {
                     if (q === '240') {
                         m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=350000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=427x240\n'
-                        m3u8File += req.params.author + '/' + req.params.link + '?quality=240&gw=' + gw + '\n\n'
+                        m3u8File += '../../' + req.params.author + '/' + req.params.link + '?quality=240&gw=' + gw + '\n\n'
                     } else if (q === '480') {
                         m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=700000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=853x480\n'
-                        m3u8File += req.params.author + '/' + req.params.link + '?quality=480&gw=' + gw + '\n\n'
+                        m3u8File += '../../' + req.params.author + '/' + req.params.link + '?quality=480&gw=' + gw + '\n\n'
                     } else if (q === '720') {
                         m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=1280x720\n'
-                        m3u8File += req.params.author + '/' + req.params.link + '?quality=720&gw=' + gw + '\n\n'
+                        m3u8File += '../../' + req.params.author + '/' + req.params.link + '?quality=720&gw=' + gw + '\n\n'
                     } else if (q === '1080') {
                         m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1600000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=1920x1080\n'
-                        m3u8File += req.params.author + '/' + req.params.link + '?quality=1080&gw=' + gw + '\n\n'
+                        m3u8File += '../../' + req.params.author + '/' + req.params.link + '?quality=1080&gw=' + gw + '\n\n'
                     } else if (q === 'src') {
                         m3u8File += '#EXT-X-STREAM-INF:BANDWIDTH=1600000,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=src\n'
-                        m3u8File += req.params.author + '/' + req.params.link + '?quality=src&gw=' + gw + '\n\n'
+                        m3u8File += '../../' + req.params.author + '/' + req.params.link + '?quality=src&gw=' + gw + '\n\n'
                     }
                 }
 
