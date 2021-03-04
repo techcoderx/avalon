@@ -32,7 +32,7 @@ var config = {
             // the precision of the claimable amounts
             ecoClaimPrecision: 3,
             // the required number of ms before a vote reward can be claimed
-            ecoClaimTime: 604800000, // 7 days
+            ecoClaimTime: 86400000, // 1 day for testnet
             // can the first vote rewards be altered by downvotes like other votes
             ecoPunishAuthor: true,
             // the percentage of coins that are burnt when there are opposite votes with rewards
@@ -53,8 +53,8 @@ var config = {
             keyIdMaxLength: 25,
             // how many max leaders there can be, and how much tokens and VT they earn per "mined" block
             leaderReward: 1,
-            leaderRewardVT: 500,
-            leaders: 10,
+            leaderRewardVT: 100,
+            leaders: 13,
             // how long of the end of the block hash is used for the leader pseudo random generator shuffle
             leaderShufflePrecision: 6,
             // the maximum number of leaders an account can vote for
@@ -115,23 +115,10 @@ var config = {
             txLimits: {
                 14: 2,
                 15: 2,
-                19: 1
             },
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
-            vtPerBurn: 6 // can be updated in the future to modify incentives
-        },
-        1000090: {
-            leaders: 13,
-            leaderRewardVT: 100,
-            vtPerBurn: 44
-        },
-        6000000: {
-            txLimits: {
-                14: 2,
-                15: 2,
-                19: 0
-            }
+            vtPerBurn: 44 // can be updated in the future to modify incentives
         }
     },
     read: (blockNum) => {
