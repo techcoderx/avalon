@@ -90,7 +90,7 @@ var config = {
             notifMaxMentions: 10,
             // the sha256sum hash of block 0 (new origin hash -> new chain)
             // state at mainnet block #4350027
-            originHash: '68afe08ac962f2c1d984b2cbfc7d4f3d9389c5f011e2a92c694371b4af588c3b',
+            originHash: 'd9ad1a35bd2a7862fb515cc9afc88ce6d9516ef3ec759390cd1865181e8cedba',
             // the default number of random bytes to use for new key generation
             randomBytesLength: 32,
             // the minimum hourly reward pool (including leader rewards)
