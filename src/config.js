@@ -46,6 +46,8 @@ var config = {
             ecoStartRent: 0.75,
             // the maximum number of follows a single account can do
             followsMax: 2000,
+            // F
+            hotfix1: false,
             // the max size of a stringified json input (content / user profile)
             // best if kept slightly lower than bwMax
             jsonMaxBytes: 60000,
@@ -120,6 +122,9 @@ var config = {
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
             vtPerBurn: 44 // can be updated in the future to modify incentives
+        },
+        226000: {
+            hotfix1: true
         }
     },
     read: (blockNum) => {
