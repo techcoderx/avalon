@@ -140,7 +140,10 @@ var config = {
             txLimits: {
                 14: 2,
                 15: 2,
-                19: 0
+                19: 0,
+                20: 1,
+                21: 1,
+                22: 1
             }
         },
         4860000: {
@@ -158,14 +161,12 @@ var config = {
             // AliveDB public key length
             streamPubLength: 87,
             // supported livestream qualities
-            streamRes: ['240','480','720','1080'],
-            // maximum number of livestream chunks (48 hours)
-            streamMaxChunks: 17280,
+            streamRes: ['240','480','720','1080','src'],
+            // maximum number of livestream sections
+            streamMaxSections: 10000,
             // min and max length of stream chunk hashes
             streamMinHashLength: 46,
-            streamMaxHashLength: 64,
-            // maximum number of livestream chunks per tx
-            streamMaxChunksTx: 60
+            streamMaxHashLength: 64
         }
     },
     read: (blockNum) => {
