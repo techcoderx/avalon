@@ -50,6 +50,8 @@ var config = {
             ecoStartRent: 0.75,
             // the maximum number of follows a single account can do
             followsMax: 2000,
+            // F
+            hotfix1: false,
             // the max size of a stringified json input (content / user profile)
             // best if kept slightly lower than bwMax
             jsonMaxBytes: 60000,
@@ -107,6 +109,9 @@ var config = {
             // the maximum length of tags (on votes)
             tagMaxLength: 25,
             tagMaxPerContent: 5,
+            // precision of author tip percentage
+            // 1 => 10% step, 2 => 1% step, 3 => 0.1% step, 4 => 0.01% step
+            tippedVotePrecision: 2,
             tmpForceTs: true,
             // the time after which transactions expire and wont be accepted by nodes anymore
             txExpirationTime: 60000,
@@ -118,20 +123,37 @@ var config = {
                 15: 2,
                 19: 1,
                 20: 1,
-                21: 1
+                21: 1,
+                22: 1
             },
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
             vtPerBurn: 6 // can be updated in the future to modify incentives
         },
-        50: {
+        1000090: {
+            leaders: 13,
+            leaderRewardVT: 100,
+            vtPerBurn: 44
+        },
+        4800000: {
+            // Author tip hardfork
+            txLimits: {
+                14: 2,
+                15: 2,
+                19: 0
+            }
+        },
+        4860000: {
+            hotfix1: true
+        },
+        20000000: {
             // Livestream HF
             txLimits: {
                 14: 2,
                 15: 2,
-                19: 0,
                 20: 0,
-                21: 0
+                21: 0,
+                22: 0
             },
             // AliveDB public key length
             streamPubLength: 87,

@@ -1,4 +1,4 @@
-const series = require('run-series')
+const parallel = require('run-parallel')
 const cloneDeep = require('clone-deep')
 var cache = {
     copy: {
@@ -13,6 +13,12 @@ var cache = {
     streams: {},
     changes: [],
     inserts: [],
+    rebuild: {
+        changes: [],
+        inserts: []
+    },
+    leaders: {},
+    leaderChanges: [],
     rollback: function() {
         // rolling back changes from copied documents
         for (const key in cache.copy.accounts)
@@ -36,6 +42,15 @@ var cache = {
             delete cache[toRemove.collection][toRemove.document[key]]
         }
         cache.inserts = []
+
+        // reset leader changes
+        for (let i in cache.leaderChanges) {
+            if (cache.leaderChanges[i][1] === 0)
+                cache.addLeader(cache.leaderChanges[i][0],true,()=>{})
+            else if (cache.leaderChanges[i][1] === 1)
+                cache.removeLeader(cache.leaderChanges[i][0],true)
+        }
+        cache.leaderChanges = []
 
         // and reset the econ data for nextBlock
         eco.nextBlock()
@@ -168,7 +183,7 @@ var cache = {
                 })
             })
         
-        series(executions, function(err, results) {
+        parallel(executions, function(err, results) {
             cb(err, results)
         })
     },
@@ -185,19 +200,34 @@ var cache = {
 
         cb(null, true)
     },
+    addLeader: (leader,isRollback,cb) => {
+        if (!cache.leaders[leader])
+            cache.leaders[leader] = 1
+        if (!isRollback)
+            cache.leaderChanges.push([leader,1])
+        // make sure account is cached
+        cache.findOne('accounts',{name:leader},() => cb())
+    },
+    removeLeader: (leader,isRollback) => {
+        if (cache.leaders[leader])
+            delete cache.leaders[leader]
+        if (!isRollback)
+            cache.leaderChanges.push([leader,0])
+    },
     clear: function() {
         cache.accounts = {}
         cache.contents = {}
         cache.distributed = {}
         cache.streams = {}
     },
-    writeToDisk: function(cb) {
+    writeToDisk: function(cb, rebuild) {
         // if (cache.inserts.length) logr.debug(cache.inserts.length+' Inserts')
-        var executions = []
+        let executions = []
         // executing the inserts (new comment / new account)
-        for (let i = 0; i < cache.inserts.length; i++)
+        let insertArr = rebuild ? cache.rebuild.inserts : cache.inserts
+        for (let i = 0; i < insertArr.length; i++)
             executions.push(function(callback) {
-                var insert = cache.inserts[i]
+                let insert = insertArr[i]
                 db.collection(insert.collection).insertOne(insert.document, function(err) {
                     if (err) throw err
                     callback()
@@ -206,14 +236,15 @@ var cache = {
 
         // then the update with simple operation compression
         // 1 update per document concerned (even if no real change)
-        var docsToUpdate = {
+        let docsToUpdate = {
             accounts: {},
             contents: {},
             distributed: {},
             streams: {}
         }
-        for (let i = 0; i < cache.changes.length; i++) {
-            var change = cache.changes[i]
+        let changesArr = rebuild ? cache.rebuild.changes : cache.changes
+        for (let i = 0; i < changesArr.length; i++) {
+            var change = changesArr[i]
             var collection = change.collection
             var key = change.query[cache.keyByCollection(collection)]
             docsToUpdate[collection][key] = cache[collection][key]
@@ -245,16 +276,35 @@ var cache = {
         // }
         
         var timeBefore = new Date().getTime()
-        series(executions, function(err, results) {
+        parallel(executions, function(err, results) {
             logr.debug(executions.length+' mongo queries executed in '+(new Date().getTime()-timeBefore)+'ms')
-            cb(err, results)
             cache.changes = []
             cache.inserts = []
+            cache.rebuild.changes = []
+            cache.rebuild.inserts = []
+            cache.leaderChanges = []
             cache.copy.accounts = {}
             cache.copy.contents = {}
             cache.copy.distributed = {}
             cache.copy.streams = {}
+            cb(err, results)
         })
+    },
+    processRebuildOps: (cb,writeToDisk) => {
+        for (let i in cache.inserts)
+            cache.rebuild.inserts.push(cache.inserts[i])
+        for (let i in cache.changes)
+            cache.rebuild.changes.push(cache.changes[i])
+        cache.inserts = []
+        cache.changes = []
+        cache.leaderChanges = []
+        cache.copy.accounts = {}
+        cache.copy.contents = {}
+        cache.copy.distributed = {}
+        if (writeToDisk)
+            cache.writeToDisk(cb,true)
+        else
+            cb()
     },
     keyByCollection: function(collection) {
         switch (collection) {
@@ -299,6 +349,19 @@ var cache = {
             cb('Collection type not found')
             break
         }
+    },
+    warmupLeaders: (cb) => {
+        db.collection('accounts').find(
+            {pub_leader: {$exists:true}}
+        ).toArray((e,accs) => {
+            if (e) throw e
+            for (let i in accs) {
+                cache.leaders[accs[i].name] = 1
+                if (!cache.accounts[accs[i].name])
+                    cache.accounts[accs[i].name] = accs[i]
+            }
+            cb(accs.length)
+        })
     }
 }
 

@@ -3,7 +3,7 @@ var isEnabled = process.env.NOTIFICATIONS || false
 
 notifications = {
     processBlock: (block) => {
-        if (!isEnabled) return
+        if (!isEnabled || (chain.restoredBlocks && chain.getLatestBlock()._id + config.notifPurge * config.notifPurgeAfter < chain.restoredBlocks)) return
 
         if (block._id % config.notifPurge === 0)
             notifications.purgeOld(block)
@@ -48,7 +48,7 @@ notifications = {
             // comment: see https://github.com/busyorg/busy-api/blob/develop/server.js#L125
                 
             /** Find replies */
-            if (tx.data.pa) {
+            if (tx.data.pa && tx.data.pa !== tx.sender) {
                 notif = {
                     u: tx.data.pa,
                     tx: tx,
@@ -88,6 +88,7 @@ notifications = {
             break
 
         case TransactionType.VOTE:
+        case TransactionType.TIPPED_VOTE:
             notif = {
                 u: tx.data.author,
                 tx: tx,

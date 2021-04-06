@@ -22,6 +22,7 @@ var transactions = [
     require('./limitVt.js'),
     require('./claimReward.js'),
     require('./enableNode.js'),
+    require('./tippedVote.js'),
     require('./pushStream.js'),
     require('./endStream.js'),
     require('./configureStream.js')
@@ -48,9 +49,10 @@ module.exports = {
         LIMIT_VT: 16,
         CLAIM_REWARD: 17,
         ENABLE_NODE: 18,
-        PUSH_STREAM: 19,
-        END_STREAM: 20,
-        CONFIGURE_STREAM: 21
+        TIPPED_VOTE: 19,
+        PUSH_STREAM: 20,
+        END_STREAM: 21,
+        CONFIGURE_STREAM: 22
     },
     validate: (tx, ts, legitUser, cb) => {
         // logr.debug('tx:'+tx.type+' validation begins')

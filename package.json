@@ -5,10 +5,9 @@
   "scripts": {
     "start": "node src/main.js",
     "cli": "node src/cli.js",
-    "lint": "eslint 'src/*.js'"
+    "lint": "eslint ./src/*"
   },
   "dependencies": {
-    "adm-zip": "^0.4.14",
     "base-x": "^3.0.8",
     "body-parser": "^1.15.2",
     "clone-deep": "^4.0.1",
@@ -24,9 +23,11 @@
     "node-fetch": "^2.3.0",
     "oembed-parser": "^1.2.2",
     "open-graph-scraper": "^3.6.1",
-    "run-series": "^1.1.8",
+    "run-parallel": "^1.1.10",
+    "run-series": "^1.1.9",
     "secp256k1": "^4.0.2",
     "sha256-file": "^1.0.0",
+    "sharp": "^0.27.2",
     "signale": "^1.4.0",
     "simple-youtube-api": "^5.2.1",
     "ws": "^7.0.0"
