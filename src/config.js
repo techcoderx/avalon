@@ -47,7 +47,7 @@ var config = {
             // the maximum number of follows a single account can do
             followsMax: 2000,
             // F
-            hotfix1: false,
+            hotfix1: true,
             // the max size of a stringified json input (content / user profile)
             // best if kept slightly lower than bwMax
             jsonMaxBytes: 60000,
@@ -55,8 +55,8 @@ var config = {
             keyIdMaxLength: 25,
             // how many max leaders there can be, and how much tokens and VT they earn per "mined" block
             leaderReward: 1,
-            leaderRewardVT: 500,
-            leaders: 10,
+            leaderRewardVT: 100,
+            leaders: 15,
             // how long of the end of the block hash is used for the leader pseudo random generator shuffle
             leaderShufflePrecision: 6,
             // the maximum number of leaders an account can vote for
@@ -115,30 +115,13 @@ var config = {
             // value: null/0 (default): enabled, 1: disabled, 2: master-only
             txLimits: {
                 14: 2,
-                15: 2,
-                19: 1
+                15: 2
             },
             // the number of ms needed for 0.01 DTC to generate 1 vt
             vtGrowth: 360000000, // +1 vt per hour per DTC (3600 * 1000 * 100)
-            vtPerBurn: 6 // can be updated in the future to modify incentives
+            vtPerBurn: 44 // can be updated in the future to modify incentives
         },
-        1000090: {
-            leaders: 13,
-            leaderRewardVT: 100,
-            vtPerBurn: 44
-        },
-        4800000: {
-            // Author tip hardfork
-            txLimits: {
-                14: 2,
-                15: 2,
-                19: 0
-            }
-        },
-        4860000: {
-            hotfix1: true
-        },
-        15000000: {
+        1200: {
             maxKeys: 25,
             disallowVotingInactiveLeader: true,
             burnAccount: 'dtube.airdrop',
