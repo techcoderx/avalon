@@ -28,7 +28,8 @@ var config = {
             // base rentability of votes
             ecoBaseRent: 0.50,
             // the number of blocks from the past taken into consideration for econonomics
-            ecoBlocks: 9600, // 8 hours
+            // shortened for testnet to observe more burn activity on dtube.airdrop
+            ecoBlocks: 1200, // 1 hours
             // the precision of the claimable amounts
             ecoClaimPrecision: 3,
             // the required number of ms before a vote reward can be claimed
@@ -91,7 +92,8 @@ var config = {
             // the maximum number of mentions triggering a notification
             notifMaxMentions: 10,
             // the sha256sum hash of block 0 (new origin hash -> new chain)
-            originHash: 'da5fe18d0844f1f97bf5a94e7780dec18b4ab015e32383ede77158e059bacbb2',
+            // mainnet snapshot as of #6919860
+            originHash: 'b5aa60629ce28b00596bf5944f6271e6fbddf910462bb2363637c7bd1f44b4d0',
             // the default number of random bytes to use for new key generation
             randomBytesLength: 32,
             // the minimum hourly reward pool (including leader rewards)
