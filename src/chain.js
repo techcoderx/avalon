@@ -249,12 +249,12 @@ chain = {
         db.collection('blocks').insertOne(block, function(err) {
             if (err) throw err
             // push cached accounts and contents to mongodb
-            
             chain.cleanMemory()
 
             // update the config if an update was scheduled
             config = require('./config.js').read(block._id)
-
+            chain.applyHardfork(block._id)
+            eco.appendHistory(block)
             eco.nextBlock()
 
             if (!p2p.recovering) {
@@ -771,6 +771,7 @@ chain = {
     cleanMemory: () => {
         chain.cleanMemoryBlocks()
         chain.cleanMemoryTx()
+        eco.cleanHistory()
     },
     cleanMemoryBlocks: () => {
         if (config.ecoBlocksIncreasesSoon) {
@@ -780,7 +781,7 @@ chain = {
             
         var extraBlocks = chain.recentBlocks.length - config.ecoBlocks
         while (extraBlocks > 0) {
-            chain.recentBlocks.splice(0,1)
+            chain.recentBlocks.shift()
             extraBlocks--
         }
     },
@@ -788,6 +789,11 @@ chain = {
         for (const hash in chain.recentTxs)
             if (chain.recentTxs[hash].ts + config.txExpirationTime < chain.getLatestBlock().timestamp)
                 delete chain.recentTxs[hash]
+    },
+    applyHardfork: (blockNum) => {
+        // Update memory state on hardfork execution
+        if (blockNum === 4860000)
+            eco.loadHistory() // reset previous votes
     },
     batchLoadBlocks: (blockNum,cb) => {
         if (chain.blocksToRebuild.length == 0) {
@@ -805,6 +811,7 @@ chain = {
             
         // Genesis block is handled differently
         if (blockNum === 0) {
+            eco.history = [{_id: 0, votes: 0, cDist: 0, cBurn: 0}]
             chain.recentBlocks = [chain.getGenesisBlock()]
             chain.minerSchedule(chain.getGenesisBlock(),(sch) => {
                 chain.schedule = sch
@@ -841,7 +848,9 @@ chain = {
                     
                     // update the config if an update was scheduled
                     config = require('./config.js').read(blockToRebuild._id)
+                    chain.applyHardfork(blockToRebuild._id)
                     eco.nextBlock()
+                    eco.appendHistory(blockToRebuild)
                     chain.cleanMemory()
 
                     let writeInterval = parseInt(process.env.REBUILD_WRITE_INTERVAL)
