@@ -132,18 +132,15 @@ var mongo = {
             
         })
     },
-    addMongoIndexes: (cb) => {
-        db.collection('accounts').createIndex( {name:1}, function() {
-            db.collection('accounts').createIndex( {balance:1}, function() {
-                db.collection('accounts').createIndex( {node_appr:1}, function() {
-                    db.collection('contents').createIndex( {ts:1}, function() {
-                        db.collection('contents').createIndex( {author:1}, function() {
-                            cb()
-                        })
-                    })
-                })
-            })
-        })
+    addMongoIndexes: async (cb) => {
+        await db.collection('accounts').createIndex({name:1})
+        await db.collection('accounts').createIndex({balance:1})
+        await db.collection('accounts').createIndex({node_appr:1})
+        await db.collection('accounts').createIndex({pub:1})
+        await db.collection('accounts').createIndex({'keys.pub':1})
+        await db.collection('contents').createIndex({ts:1})
+        await db.collection('contents').createIndex({author:1})
+        cb()
     },
     fillInMemoryBlocks: (cb,headBlock) => {
         let query = {}
@@ -169,20 +166,35 @@ var mongo = {
     restoreBlocks: (cb) => {
         let dump_dir = process.cwd() + '/dump'
         let dump_location = dump_dir + '/blocks.zip'
+        let blocks_bson = dump_dir + '/blocks.bson'
+        let blocks_meta = dump_dir + '/blocks.metadata.json'
         let mongoUri = db_url+'/'+db_name
 
-        try {
-            fs.statSync(dump_location)
-        } catch (err) {
-            return cb('blocks.zip file not found')
+        if (process.env.UNZIP_BLOCKS === '1') {
+            try {
+                fs.statSync(dump_location)
+            } catch (err) {
+                return cb('blocks.zip file not found')
+            }
+        } else {
+            try {
+                fs.statSync(blocks_bson)
+                fs.statSync(blocks_meta)
+            } catch {
+                return cb('blocks mongo dump files not found')
+            }
         }
 
         // Drop the existing blocks collection and replace with the dump
         db.collection('blocks').drop((e,ok) => {
             if (!ok) return cb('Failed to drop existing blocks data')
 
-            spawnSync('unzip',[dump_location,'-d',dump_dir])
-            logr.info('Finished unzipping, importing blocks now...')
+            if (process.env.UNZIP_BLOCKS === '1') {
+                spawnSync('unzip',[dump_location,'-d',dump_dir])
+                logr.info('Finished unzipping, importing blocks now...')
+            } else {
+                logr.info('Importing blocks for rebuild...')
+            }
 
             let mongorestore = spawn('mongorestore', ['--uri='+mongoUri, '-d', db_name, dump_dir])                         
             mongorestore.stderr.on('data', (data) => {

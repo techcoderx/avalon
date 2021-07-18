@@ -20,7 +20,7 @@ if (allowNodeV.indexOf(currentNodeV) === -1) {
     logr.fatal('Wrong NodeJS version. Allowed versions: v'+allowNodeV.join(', v'))
     process.exit(1)
 } else if (currentNodeV === 10) {
-    logr.warn('NodeJS v10 has reached end of life, hence v10 support for Avalon will be removed in the future. Please upgrade to the latest supported NodeJS v' + allowNodeV[allowNodeV.length])
+    logr.warn('NodeJS v10 has reached end of life, hence v10 support for Avalon will be removed in the future. Please upgrade to the latest supported NodeJS v' + allowNodeV[allowNodeV.length-1])
 } else logr.info('Correctly using NodeJS v'+process.versions.node)
 
 erroredRebuild = false
@@ -48,8 +48,13 @@ mongo.init(async function() {
     // Rebuild chain state if specified. This verifies the integrity of every block and transactions and rebuild the state.
     let rebuildResumeBlock = parseInt(process.env.REBUILD_RESUME_BLK)
     let isResumingRebuild = !isNaN(rebuildResumeBlock) && rebuildResumeBlock > 0
+
+    // alert when rebuild without signture verification, only use if you know what you are doing
+    if (process.env.REBUILD_NO_VERIFY === '1' && (process.env.REBUILD_STATE === '1' || process.env.REBUILD_STATE === 1))
+        logr.info('Rebuilding without signature verification. Only use this if you know what you are doing!')
+
     if ((process.env.REBUILD_STATE === '1' || process.env.REBUILD_STATE === 1) && !isResumingRebuild) {
-        logr.info('Chain state rebuild requested, unzipping blocks.zip...')
+        logr.info('Chain state rebuild requested'+(process.env.UNZIP_BLOCKS === '1' ? ', unzipping blocks.zip...' : ''))
         mongo.restoreBlocks((e)=>{
             if (e) return logr.error(e)
             startRebuild(0)
@@ -88,11 +93,11 @@ function startRebuild(startBlock) {
             logr.info('Rebuilt ' + headBlockNum + ' blocks successfully in ' + (new Date().getTime() - rebuildStartTime) + ' ms')
         logr.info('Writing rebuild data to disk...')
         let cacheWriteStart = new Date().getTime()
-        cache.writeToDisk(() => {
+        cache.writeToDisk(true,() => {
             logr.info('Rebuild data written to disk in ' + (new Date().getTime() - cacheWriteStart) + ' ms')
             if (chain.shuttingDown) return process.exit(0)
             startDaemon()
-        },true)
+        })
     })
 }
 
@@ -123,9 +128,12 @@ process.on('SIGINT', function() {
     closing = true
     chain.shuttingDown = true
     if (!erroredRebuild && chain.restoredBlocks && chain.getLatestBlock()._id < chain.restoredBlocks) return
-    logr.warn('Waiting '+config.blockTime+' ms before shut down...')
-    setTimeout(function() {
-        logr.info('Avalon exitted safely')
-        process.exit(0)
-    }, config.blockTime)
+    process.stdout.write('\r')
+    logr.info('Received SIGINT, completing writer queue...')
+    setInterval(() => {
+        if (cache.writerQueue.queue.length === 0) {
+            logr.info('Avalon exitted safely')
+            process.exit(0)
+        }
+    },1000)
 })
